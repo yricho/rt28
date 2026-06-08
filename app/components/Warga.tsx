@@ -1,7 +1,9 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { supabase } from "../lib/supabase";
+
+const PAGE_SIZE = 10;
 
 export default function Warga() {
   const [warga, setWarga] = useState<any[]>([]);
@@ -9,6 +11,9 @@ export default function Warga() {
 
   // MODAL
   const [openModal, setOpenModal] = useState(false);
+
+  // PAGINATION
+  const [page, setPage] = useState(1);
 
   // FORM STATE
   const [nama, setNama] = useState("");
@@ -25,13 +30,28 @@ export default function Warga() {
   // GET DATA
   // =========================
   async function getData() {
+    setLoading(true);
+
     const { data } = await supabase
       .from("warga")
       .select("*")
       .order("nama", { ascending: true });
 
     setWarga(data || []);
+    setLoading(false);
   }
+
+  // =========================
+  // PAGINATION
+  // =========================
+  const totalPages = Math.ceil(warga.length / PAGE_SIZE);
+
+  const paginatedWarga = useMemo(() => {
+    const start = (page - 1) * PAGE_SIZE;
+    const end = start + PAGE_SIZE;
+
+    return warga.slice(start, end);
+  }, [warga, page]);
 
   // =========================
   // TAMBAH WARGA
@@ -77,7 +97,7 @@ export default function Warga() {
         return;
       }
 
-      // reset
+      // RESET
       setNama("");
       setNik("");
       setNoHp("");
@@ -85,7 +105,8 @@ export default function Warga() {
       setAlamat("");
 
       setOpenModal(false);
-      getData();
+
+      await getData();
 
       alert("Warga berhasil ditambahkan");
     } finally {
@@ -100,6 +121,7 @@ export default function Warga() {
     if (!confirm("Hapus warga ini?")) return;
 
     await supabase.from("warga").delete().eq("id", id);
+
     getData();
   }
 
@@ -110,6 +132,7 @@ export default function Warga() {
         <div className="flex items-center justify-between mb-8">
           <div>
             <h1 className="text-3xl font-bold text-gray-900">Data Warga</h1>
+
             <p className="text-gray-500 mt-1">Kelola data warga RT</p>
           </div>
 
@@ -129,26 +152,44 @@ export default function Warga() {
               <thead className="bg-gray-50 text-xs uppercase text-gray-600">
                 <tr>
                   <th className="px-4 py-3 text-left">Nama</th>
+
                   <th className="px-4 py-3 text-left">NIK</th>
+
                   <th className="px-4 py-3 text-left">No HP</th>
+
                   <th className="px-4 py-3 text-left">Tanggal Input</th>
-                  {/* <th className="px-4 py-3 text-right">Aksi</th> */}
+
+                  {/* <th className="px-4 py-3 text-right">
+                    Aksi
+                  </th> */}
                 </tr>
               </thead>
 
               <tbody>
-                {warga.map((item) => (
+                {paginatedWarga.length === 0 && (
+                  <tr>
+                    <td colSpan={5} className="text-center py-10 text-gray-500">
+                      Tidak ada data warga
+                    </td>
+                  </tr>
+                )}
+
+                {paginatedWarga.map((item) => (
                   <tr key={item.id} className="border-t hover:bg-gray-50">
                     <td className="px-4 py-3 font-medium capitalize">
                       {item.nama}
                     </td>
+
                     <td className="px-4 py-3">{item.nik}</td>
+
                     <td className="px-4 py-3">{item.no_hp}</td>
+
                     <td className="px-4 py-3 text-gray-500">
                       {item.created_at
-                        ? new Date(item.created_at).toLocaleDateString()
+                        ? new Date(item.created_at).toLocaleDateString("id-ID")
                         : "-"}
                     </td>
+
                     {/* <td className="px-4 py-3 text-right">
                       <button
                         onClick={() => hapusWarga(item.id)}
@@ -163,12 +204,49 @@ export default function Warga() {
             </table>
           </div>
         </div>
+
+        {/* PAGINATION */}
+        {totalPages > 1 && (
+          <div className="flex flex-col md:flex-row items-center justify-between gap-4 mt-5">
+            <p className="text-sm text-gray-500">
+              Menampilkan {(page - 1) * PAGE_SIZE + 1} -{" "}
+              {Math.min(page * PAGE_SIZE, warga.length)} dari {warga.length}{" "}
+              data
+            </p>
+
+            <div className="flex items-center gap-2">
+              {/* PREV */}
+              <button
+                disabled={page === 1}
+                onClick={() => setPage((prev) => prev - 1)}
+                className="px-4 py-2 border rounded-xl disabled:opacity-40 disabled:cursor-not-allowed"
+              >
+                Prev
+              </button>
+
+              {/* PAGE */}
+              <div className="px-4 py-2 text-sm font-medium">
+                {page} / {totalPages}
+              </div>
+
+              {/* NEXT */}
+              <button
+                disabled={page === totalPages}
+                onClick={() => setPage((prev) => prev + 1)}
+                className="px-4 py-2 border rounded-xl disabled:opacity-40 disabled:cursor-not-allowed"
+              >
+                Next
+              </button>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* ================= MODAL ================= */}
       {openModal && (
         <div className="fixed inset-0 bg-black/40 flex items-center justify-center p-4">
           <div className="bg-white w-full max-w-lg rounded-2xl p-6">
+            {/* HEADER */}
             <div className="flex justify-between items-center mb-4">
               <h2 className="text-xl font-bold">Tambah Warga</h2>
 
@@ -180,7 +258,9 @@ export default function Warga() {
               </button>
             </div>
 
+            {/* FORM */}
             <form onSubmit={tambahWarga} className="space-y-3">
+              {/* NAMA */}
               <input
                 placeholder="Nama"
                 value={nama}
@@ -188,6 +268,7 @@ export default function Warga() {
                 className="w-full border rounded-xl px-3 py-2"
               />
 
+              {/* NIK */}
               <input
                 placeholder="NIK"
                 value={nik}
@@ -195,6 +276,7 @@ export default function Warga() {
                 className="w-full border rounded-xl px-3 py-2"
               />
 
+              {/* NO HP */}
               <input
                 placeholder="No HP"
                 value={noHp}
@@ -202,20 +284,27 @@ export default function Warga() {
                 className="w-full border rounded-xl px-3 py-2"
               />
 
+              {/* NO RUMAH */}
               {/* <input
                 placeholder="No Rumah"
                 value={noRumah}
-                onChange={(e) => setNoRumah(e.target.value)}
-                className="w-full border rounded-xl px-3 py-2"
-              />
-
-              <textarea
-                placeholder="Alamat"
-                value={alamat}
-                onChange={(e) => setAlamat(e.target.value)}
+                onChange={(e) =>
+                  setNoRumah(e.target.value)
+                }
                 className="w-full border rounded-xl px-3 py-2"
               /> */}
 
+              {/* ALAMAT */}
+              {/* <textarea
+                placeholder="Alamat"
+                value={alamat}
+                onChange={(e) =>
+                  setAlamat(e.target.value)
+                }
+                className="w-full border rounded-xl px-3 py-2"
+              /> */}
+
+              {/* BUTTON */}
               <div className="flex gap-2 pt-2">
                 <button
                   type="button"
@@ -227,9 +316,8 @@ export default function Warga() {
 
                 <button
                   type="submit"
-                  // disabled={loading}
                   className="flex-1 bg-black text-white rounded-xl py-2"
-                  disabled
+                  disabled={loading}
                 >
                   {loading ? "Menyimpan..." : "Simpan"}
                 </button>
