@@ -3,6 +3,8 @@
 import { useEffect, useState } from "react";
 import { supabase } from "../lib/supabase";
 
+const PAGE_SIZE = 10;
+
 export default function Rumah() {
   const [rumah, setRumah] = useState<any[]>([]);
   const [warga, setWarga] = useState<any[]>([]);
@@ -13,6 +15,10 @@ export default function Rumah() {
 
   const [search, setSearch] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
+
+  // PAGINATION
+  const [page, setPage] = useState(1);
+  const [totalData, setTotalData] = useState(0);
 
   const [form, setForm] = useState({
     id: null as number | null,
@@ -33,6 +39,11 @@ export default function Rumah() {
     return () => clearTimeout(timer);
   }, [search]);
 
+  // RESET PAGE WHEN SEARCH
+  useEffect(() => {
+    setPage(1);
+  }, [debouncedSearch]);
+
   // =====================
   // INIT LOAD
   // =====================
@@ -42,13 +53,16 @@ export default function Rumah() {
 
   useEffect(() => {
     getDataRumah();
-  }, [debouncedSearch]);
+  }, [debouncedSearch, page]);
 
   // =====================
-  // GET RUMAH (FIXED RELATION)
+  // GET RUMAH
   // =====================
   async function getDataRumah() {
     setLoading(true);
+
+    const from = (page - 1) * PAGE_SIZE;
+    const to = from + PAGE_SIZE - 1;
 
     let query = supabase
       .from("rumah")
@@ -66,8 +80,10 @@ export default function Rumah() {
           no_hp
         )
       `,
+        { count: "exact" },
       )
-      .order("blok", { ascending: true });
+      .order("blok", { ascending: true })
+      .range(from, to);
 
     if (debouncedSearch) {
       query = query.or(
@@ -75,7 +91,7 @@ export default function Rumah() {
       );
     }
 
-    const { data, error } = await query;
+    const { data, error, count } = await query;
 
     if (error) {
       console.error("GET RUMAH ERROR:", error.message);
@@ -84,6 +100,8 @@ export default function Rumah() {
     }
 
     setRumah(data || []);
+    setTotalData(count || 0);
+
     setLoading(false);
   }
 
@@ -105,7 +123,7 @@ export default function Rumah() {
   }
 
   // =====================
-  // SUBMIT (INSERT / UPDATE)
+  // SUBMIT
   // =====================
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -139,6 +157,9 @@ export default function Rumah() {
     getDataRumah();
   }
 
+  // =====================
+  // RESET FORM
+  // =====================
   function resetForm() {
     setForm({
       id: null,
@@ -152,6 +173,9 @@ export default function Rumah() {
     setOpenModal(false);
   }
 
+  // =====================
+  // EDIT
+  // =====================
   function handleEdit(item: any) {
     setForm({
       id: item.id,
@@ -165,6 +189,8 @@ export default function Rumah() {
     setOpenModal(true);
   }
 
+  const totalPages = Math.ceil(totalData / PAGE_SIZE);
+
   // =====================
   // UI
   // =====================
@@ -175,6 +201,7 @@ export default function Rumah() {
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-6">
           <div>
             <h1 className="text-2xl md:text-4xl font-bold">Data Rumah</h1>
+
             <p className="text-gray-500">
               Kelola rumah berdasarkan blok & warga
             </p>
@@ -194,7 +221,7 @@ export default function Rumah() {
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Cari blok / no rumah / alamat..."
-            className="w-full border rounded-xl px-4 py-3"
+            className="w-full border rounded-xl px-4 py-3 outline-none"
           />
         </div>
 
@@ -212,83 +239,85 @@ export default function Rumah() {
           </div>
         )}
 
-        {/* LIST */}
-        <div className="bg-white border border-gray-200 rounded-2xl overflow-hidden">
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm text-left">
-              {/* HEADER */}
-              <thead className="bg-gray-50 text-gray-600 uppercase text-xs">
-                <tr>
-                  <th className="px-4 py-3">Blok / No</th>
-                  {/* <th className="px-4 py-3">Alamat</th> */}
-                  <th className="px-4 py-3">Pemilik</th>
-                  <th className="px-4 py-3">No HP</th>
-                  {/* <th className="px-4 py-3">Status</th> */}
-                  {/* <th className="px-4 py-3 text-right">Aksi</th> */}
-                </tr>
-              </thead>
+        {/* TABLE */}
+        {!loading && rumah.length > 0 && (
+          <>
+            <div className="bg-white border border-gray-200 rounded-2xl overflow-hidden">
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm text-left">
+                  {/* HEADER */}
+                  <thead className="bg-gray-50 text-gray-600 uppercase text-xs">
+                    <tr>
+                      <th className="px-4 py-3">Blok / No</th>
+                      <th className="px-4 py-3">Pemilik</th>
+                      <th className="px-4 py-3">No HP</th>
+                    </tr>
+                  </thead>
 
-              {/* BODY */}
-              <tbody>
-                {rumah.map((item) => (
-                  <tr
-                    key={item.id}
-                    className="border-t hover:bg-gray-50 transition"
-                  >
-                    {/* BLOK / NO */}
-                    <td className="px-4 py-3 font-semibold text-gray-900">
-                      {item.blok} - {item.no_rumah}
-                    </td>
+                  {/* BODY */}
+                  <tbody>
+                    {rumah.map((item) => (
+                      <tr
+                        key={item.id}
+                        className="border-t hover:bg-gray-50 transition"
+                      >
+                        {/* BLOK */}
+                        <td className="px-4 py-3 font-semibold text-gray-900">
+                          {item.blok} - {item.no_rumah}
+                        </td>
 
-                    {/* ALAMAT */}
-                    {/* <td className="px-4 py-3 text-gray-600">{item.alamat}</td> */}
+                        {/* WARGA */}
+                        <td className="px-4 py-3 font-medium text-gray-900 capitalize">
+                          {item.warga?.nama ?? "Belum ada"}
+                        </td>
 
-                    {/* WARGA */}
-                    <td className="px-4 py-3 font-medium text-gray-900 capitalize">
-                      {item.warga?.nama ?? "Belum ada"}
-                    </td>
+                        {/* NO HP */}
+                        <td className="px-4 py-3 text-gray-600">
+                          {item.warga?.no_hp ?? "-"}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
 
-                    {/* NO HP */}
-                    <td className="px-4 py-3 text-gray-600">
-                      {item.warga?.no_hp ?? "-"}
-                    </td>
+            {/* PAGINATION */}
+            <div className="flex flex-col md:flex-row items-center justify-between gap-4 mt-5">
+              <p className="text-sm text-gray-500">
+                Menampilkan {(page - 1) * PAGE_SIZE + 1} -{" "}
+                {Math.min(page * PAGE_SIZE, totalData)} dari {totalData} data
+              </p>
 
-                    {/* STATUS */}
-                    {/* <td className="px-4 py-3">
-                      <span className="inline-block px-3 py-1 text-xs rounded-full bg-green-100 text-green-700">
-                        Aktif
-                      </span>
-                    </td> */}
+              <div className="flex items-center gap-2">
+                <button
+                  disabled={page === 1}
+                  onClick={() => setPage((prev) => prev - 1)}
+                  className="px-4 py-2 border rounded-xl disabled:opacity-40 disabled:cursor-not-allowed"
+                >
+                  Prev
+                </button>
 
-                    {/* ACTION */}
-                    {/* <td className="px-4 py-3 text-right">
-                      <div className="flex justify-end gap-2">
-                        <button
-                          onClick={() => handleEdit(item)}
-                          className="px-3 py-1 rounded-lg bg-yellow-50 text-yellow-700 hover:bg-yellow-100"
-                        >
-                          Edit
-                        </button>
+                <div className="px-4 py-2 text-sm font-medium">
+                  {page} / {totalPages}
+                </div>
 
-                        <button
-                          onClick={() => handleDelete(item.id)}
-                          className="px-3 py-1 rounded-lg bg-red-50 text-red-600 hover:bg-red-100"
-                        >
-                          Hapus
-                        </button>
-                      </div>
-                    </td> */}
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
+                <button
+                  disabled={page === totalPages}
+                  onClick={() => setPage((prev) => prev + 1)}
+                  className="px-4 py-2 border rounded-xl disabled:opacity-40 disabled:cursor-not-allowed"
+                >
+                  Next
+                </button>
+              </div>
+            </div>
+          </>
+        )}
       </div>
 
       {/* MODAL */}
       {openModal && (
-        <div className="fixed inset-0 bg-black/40 flex items-end md:items-center justify-center">
+        <div className="fixed inset-0 bg-black/40 flex items-end md:items-center justify-center z-50">
           <div className="bg-white w-full md:w-[500px] p-5 rounded-t-3xl md:rounded-3xl">
             <h2 className="text-xl font-bold mb-4">
               {editMode ? "Edit Rumah" : "Tambah Rumah"}
@@ -298,10 +327,13 @@ export default function Rumah() {
               {/* WARGA */}
               <select
                 value={form.warga_id}
-                onChange={(e) => setForm({ ...form, warga_id: e.target.value })}
+                onChange={(e) =>
+                  setForm({ ...form, warga_id: e.target.value })
+                }
                 className="w-full border rounded-xl px-3 py-2"
               >
                 <option value="">Pilih Warga</option>
+
                 {warga.map((w) => (
                   <option key={w.id} value={w.id} className="capitalize">
                     {w.nama
@@ -322,18 +354,12 @@ export default function Rumah() {
               {/* NO RUMAH */}
               <input
                 value={form.no_rumah}
-                onChange={(e) => setForm({ ...form, no_rumah: e.target.value })}
+                onChange={(e) =>
+                  setForm({ ...form, no_rumah: e.target.value })
+                }
                 placeholder="No Rumah"
                 className="w-full border rounded-xl px-3 py-2"
               />
-
-              {/* ALAMAT */}
-              {/* <textarea
-                value={form.alamat}
-                onChange={(e) => setForm({ ...form, alamat: e.target.value })}
-                placeholder="Alamat"
-                className="w-full border rounded-xl px-3 py-2"
-              /> */}
 
               {/* BUTTON */}
               <div className="flex gap-2 pt-2">
