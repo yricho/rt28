@@ -153,11 +153,11 @@ export default function Warga() {
                 <tr>
                   <th className="px-4 py-3 text-left">Nama</th>
 
-                  <th className="px-4 py-3 text-left">NIK</th>
+                  <th className="px-4 py-3 text-center">NIK</th>
 
-                  <th className="px-4 py-3 text-left">No HP</th>
+                  <th className="px-4 py-3 text-center">No HP</th>
 
-                  <th className="px-4 py-3 text-left">Tanggal Input</th>
+                  {/* <th className="px-4 py-3 text-left">Tanggal Input</th> */}
 
                   {/* <th className="px-4 py-3 text-right">
                     Aksi
@@ -180,15 +180,17 @@ export default function Warga() {
                       {item.nama}
                     </td>
 
-                    <td className="px-4 py-3">{item.nik}</td>
+                    <td className="px-4 py-3 text-center">{item.nik ?? "-"}</td>
 
-                    <td className="px-4 py-3">{item.no_hp}</td>
+                    <td className="px-4 py-3 text-center">
+                      {item.no_hp ?? "-"}
+                    </td>
 
-                    <td className="px-4 py-3 text-gray-500">
+                    {/* <td className="px-4 py-3 text-gray-500">
                       {item.created_at
                         ? new Date(item.created_at).toLocaleDateString("id-ID")
                         : "-"}
-                    </td>
+                    </td> */}
 
                     {/* <td className="px-4 py-3 text-right">
                       <button

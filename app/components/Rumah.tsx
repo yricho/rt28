@@ -249,8 +249,8 @@ export default function Rumah() {
                   <thead className="bg-gray-50 text-gray-600 uppercase text-xs">
                     <tr>
                       <th className="px-4 py-3">Blok / No</th>
-                      <th className="px-4 py-3">Pemilik</th>
-                      <th className="px-4 py-3">No HP</th>
+                      <th className="px-4 py-3">Nama</th>
+                      <th className="px-4 py-3 text-center">No HP</th>
                     </tr>
                   </thead>
 
@@ -263,7 +263,7 @@ export default function Rumah() {
                       >
                         {/* BLOK */}
                         <td className="px-4 py-3 font-semibold text-gray-900">
-                          {item.blok} - {item.no_rumah}
+                          {item.blok} / {item.no_rumah}
                         </td>
 
                         {/* WARGA */}
@@ -272,7 +272,7 @@ export default function Rumah() {
                         </td>
 
                         {/* NO HP */}
-                        <td className="px-4 py-3 text-gray-600">
+                        <td className="px-4 py-3 text-center text-gray-600">
                           {item.warga?.no_hp ?? "-"}
                         </td>
                       </tr>
@@ -327,9 +327,7 @@ export default function Rumah() {
               {/* WARGA */}
               <select
                 value={form.warga_id}
-                onChange={(e) =>
-                  setForm({ ...form, warga_id: e.target.value })
-                }
+                onChange={(e) => setForm({ ...form, warga_id: e.target.value })}
                 className="w-full border rounded-xl px-3 py-2"
               >
                 <option value="">Pilih Warga</option>
@@ -354,9 +352,7 @@ export default function Rumah() {
               {/* NO RUMAH */}
               <input
                 value={form.no_rumah}
-                onChange={(e) =>
-                  setForm({ ...form, no_rumah: e.target.value })
-                }
+                onChange={(e) => setForm({ ...form, no_rumah: e.target.value })}
                 placeholder="No Rumah"
                 className="w-full border rounded-xl px-3 py-2"
               />

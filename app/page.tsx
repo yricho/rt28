@@ -1,13 +1,83 @@
+"use client";
+
+import { useEffect, useState } from "react";
+import { supabase } from "@/app/lib/supabase";
+
 export default function Home() {
+  const [loading, setLoading] = useState(true);
+
+  const [stats, setStats] = useState({
+    totalRumah: 0,
+    totalWarga: 0,
+    totalIPL: 0,
+    totalTunggakan: 0,
+    totalLunas: 0,
+  });
+
+  useEffect(() => {
+    loadStats();
+  }, []);
+
+  async function loadStats() {
+    try {
+      setLoading(true);
+
+      const [rumahResult, wargaResult, iplResult] = await Promise.all([
+        supabase.from("rumah").select("*", {
+          count: "exact",
+          head: true,
+        }),
+
+        supabase.from("warga").select("*", {
+          count: "exact",
+          head: true,
+        }),
+
+        supabase.from("tagihan_ipl").select("nominal,status"),
+      ]);
+
+      const totalRumah = rumahResult.count || 0;
+
+      const totalWarga = wargaResult.count || 0;
+
+      const totalIPL = iplResult.data?.length || 0;
+
+      const totalTunggakan =
+        iplResult.data
+          ?.filter((item) => item.status?.toLowerCase() !== "lunas")
+          .reduce((acc, curr) => acc + Number(curr.nominal || 0), 0) || 0;
+
+      const totalLunas =
+        iplResult.data
+          ?.filter((item) => item.status?.toLowerCase() === "lunas")
+          .reduce((acc, curr) => acc + Number(curr.nominal || 0), 0) || 0;
+
+      setStats({
+        totalRumah,
+        totalWarga,
+        totalIPL,
+        totalTunggakan,
+        totalLunas,
+      });
+    } catch (error) {
+      console.error(error);
+    } finally {
+      setLoading(false);
+    }
+  }
+
   return (
-    <main className="min-h-screen bg-gradient-to-br from-zinc-100 via-white to-zinc-200 flex items-center justify-center px-6">
-      <div className="max-w-5xl w-full">
+    <main className="min-h-screen bg-gradient-to-br from-zinc-100 via-white to-zinc-200 flex items-center justify-center px-6 py-10">
+      {" "}
+      <div className="max-w-6xl w-full">
+        {" "}
         <div className="bg-white border border-zinc-200 rounded-[40px] p-8 md:p-14 shadow-xl">
+          {" "}
           <div className="grid md:grid-cols-2 gap-10 items-center">
             {/* LEFT */}
             <div>
-              <div className="inline-flex items-center gap-2 bg-black text-white px-4 py-2 rounded-full text-sm mb-6">
-                🏡 Sistem Pendataan Warga
+              <div className="inline-flex items-center gap-2 bg-emerald-600 text-white px-4 py-2 rounded-full text-sm mb-6">
+                ● Online
               </div>
 
               <h1 className="text-5xl md:text-6xl font-black leading-tight text-zinc-900">
@@ -21,6 +91,10 @@ export default function Home() {
                 secara modern, cepat, dan efisien.
               </p>
 
+              <p className="mt-4 text-sm text-zinc-500">
+                {stats.totalRumah} rumah • {stats.totalWarga} warga terdaftar
+              </p>
+
               <div className="flex flex-col sm:flex-row gap-4 mt-8">
                 <a
                   href="/dashboard"
@@ -30,28 +104,37 @@ export default function Home() {
                 </a>
 
                 <a
-                  href="#"
+                  href="/account"
                   className="border border-zinc-300 hover:bg-zinc-100 px-6 py-4 rounded-2xl font-medium text-center transition"
                 >
-                  Lihat Data Rumah
+                  Cek IPL Warga
                 </a>
               </div>
 
               {/* STATS */}
               <div className="grid grid-cols-3 gap-4 mt-10">
                 <div className="bg-zinc-100 rounded-2xl p-4">
-                  <h3 className="text-2xl font-bold">RT</h3>
-                  <p className="text-sm text-zinc-500">Administrasi</p>
+                  <h3 className="text-2xl font-bold">
+                    {loading ? "..." : stats.totalRumah}
+                  </h3>
+
+                  <p className="text-sm text-zinc-500">Rumah</p>
                 </div>
 
                 <div className="bg-zinc-100 rounded-2xl p-4">
-                  <h3 className="text-2xl font-bold">IPL</h3>
-                  <p className="text-sm text-zinc-500">Pembayaran</p>
+                  <h3 className="text-2xl font-bold">
+                    {loading ? "..." : stats.totalWarga}
+                  </h3>
+
+                  <p className="text-sm text-zinc-500">Warga</p>
                 </div>
 
                 <div className="bg-zinc-100 rounded-2xl p-4">
-                  <h3 className="text-2xl font-bold">Warga</h3>
-                  <p className="text-sm text-zinc-500">Pendataan</p>
+                  <h3 className="text-2xl font-bold">
+                    {loading ? "..." : stats.totalIPL}
+                  </h3>
+
+                  <p className="text-sm text-zinc-500">IPL</p>
                 </div>
               </div>
             </div>
@@ -74,25 +157,38 @@ export default function Home() {
                 </div>
 
                 <div className="space-y-4">
-                  {/* CARD */}
                   <div className="bg-white/5 border border-white/10 rounded-2xl p-4">
                     <p className="text-zinc-400 text-sm">Data Rumah</p>
 
-                    <h3 className="text-3xl font-bold mt-2">128</h3>
+                    <h3 className="text-3xl font-bold mt-2">
+                      {loading ? "..." : stats.totalRumah}
+                    </h3>
                   </div>
 
-                  {/* CARD */}
                   <div className="bg-white/5 border border-white/10 rounded-2xl p-4">
                     <p className="text-zinc-400 text-sm">Warga Aktif</p>
 
-                    <h3 className="text-3xl font-bold mt-2">412</h3>
+                    <h3 className="text-3xl font-bold mt-2">
+                      {loading ? "..." : stats.totalWarga}
+                    </h3>
                   </div>
 
-                  {/* CARD */}
                   <div className="bg-white/5 border border-white/10 rounded-2xl p-4">
-                    <p className="text-zinc-400 text-sm">IPL Bulan Ini</p>
+                    <p className="text-zinc-400 text-sm">IPL Lunas</p>
 
-                    <h3 className="text-3xl font-bold mt-2">Rp 12.5JT</h3>
+                    <h3 className="text-3xl font-bold mt-2">
+                      Rp {(stats.totalLunas / 1000000).toFixed(1)}
+                      JT
+                    </h3>
+                  </div>
+
+                  <div className="bg-white/5 border border-white/10 rounded-2xl p-4">
+                    <p className="text-zinc-400 text-sm">Tunggakan IPL</p>
+
+                    <h3 className="text-3xl font-bold mt-2">
+                      Rp {(stats.totalTunggakan / 1000000).toFixed(1)}
+                      JT
+                    </h3>
                   </div>
                 </div>
 
@@ -101,7 +197,6 @@ export default function Home() {
                 </div>
               </div>
 
-              {/* DECORATION */}
               <div className="absolute -top-5 -right-5 w-24 h-24 bg-zinc-300 rounded-full blur-3xl opacity-40" />
 
               <div className="absolute -bottom-5 -left-5 w-24 h-24 bg-zinc-400 rounded-full blur-3xl opacity-30" />

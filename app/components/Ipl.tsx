@@ -20,6 +20,7 @@ export default function IPLPage() {
   // FILTER
   const [filterBulan, setFilterBulan] = useState("");
   const [filterTahun, setFilterTahun] = useState("");
+  const [filterBlok, setFilterBlok] = useState("");
 
   // PAGINATION
   const [page, setPage] = useState(1);
@@ -79,7 +80,7 @@ export default function IPLPage() {
   // =========================
   useEffect(() => {
     setPage(1);
-  }, [search, filterBulan, filterTahun]);
+  }, [search, filterBulan, filterTahun, filterBlok]);
 
   // =========================
   // FILTER DATA
@@ -98,9 +99,11 @@ export default function IPLPage() {
         ? String(item.tahun) === filterTahun
         : true;
 
-      return matchSearch && matchBulan && matchTahun;
+      const matchBlok = filterBlok ? item.rumah?.blok === filterBlok : true;
+
+      return matchSearch && matchBulan && matchTahun && matchBlok;
     });
-  }, [ipl, search, filterBulan, filterTahun]);
+  }, [ipl, search, filterBulan, filterTahun, filterBlok]);
 
   // =========================
   // PAGINATION
@@ -293,6 +296,24 @@ export default function IPLPage() {
               className="border px-4 py-3 rounded-xl outline-none"
             />
 
+            {/* TAHUN */}
+            {/* <input
+              type="number"
+              value={filterTahun}
+              onChange={(e) => setFilterTahun(e.target.value)}
+              placeholder="Filter Tahun"
+              className="border px-4 py-3 rounded-xl outline-none"
+            /> */}
+
+            {/* BLOK */}
+            <input
+              type="text"
+              value={filterBlok}
+              onChange={(e) => setFilterBlok(e.target.value.toUpperCase())}
+              placeholder="Blok"
+              className="border px-4 py-3 rounded-xl outline-none"
+            />
+
             {/* BULAN */}
             <select
               value={filterBulan}
@@ -300,7 +321,6 @@ export default function IPLPage() {
               className="border px-4 py-3 rounded-xl outline-none"
             >
               <option value="">Semua Bulan</option>
-
               <option value="Januari">Januari</option>
               <option value="Februari">Februari</option>
               <option value="Maret">Maret</option>
@@ -315,21 +335,13 @@ export default function IPLPage() {
               <option value="Desember">Desember</option>
             </select>
 
-            {/* TAHUN */}
-            <input
-              type="number"
-              value={filterTahun}
-              onChange={(e) => setFilterTahun(e.target.value)}
-              placeholder="Filter Tahun"
-              className="border px-4 py-3 rounded-xl outline-none"
-            />
-
             {/* RESET */}
             <button
               onClick={() => {
                 setSearch("");
                 setFilterBulan("");
                 setFilterTahun("");
+                setFilterBlok("");
               }}
               className="border rounded-xl px-4 py-3 hover:bg-gray-50"
             >
@@ -344,17 +356,13 @@ export default function IPLPage() {
             <table className="w-full text-sm">
               <thead className="bg-gray-50 text-xs uppercase text-gray-600">
                 <tr>
-                  <th className="px-4 py-3 text-left">Nama Warga</th>
-
-                  <th className="px-4 py-3 text-left">Nomor Rumah</th>
+                  <th className="px-4 py-3 text-left">No.Rumah / Nama</th>
 
                   <th className="px-4 py-3 text-left">Periode</th>
 
                   <th className="px-4 py-3 text-left">Nominal</th>
 
-                  <th className="px-4 py-3 text-left">Status</th>
-
-                  <th className="px-4 py-3 text-right">Aksi</th>
+                  <th className="px-4 py-3 text-center">Aksi</th>
                 </tr>
               </thead>
 
@@ -373,13 +381,12 @@ export default function IPLPage() {
                   return (
                     <tr key={item.id} className="border-t">
                       {/* NAMA */}
-                      <td className="px-4 py-3 font-medium capitalize">
-                        {item.rumah?.warga?.nama || "-"}
-                      </td>
-
-                      {/* RUMAH */}
-                      <td className="px-4 py-3 text-gray-600">
-                        Blok {item.rumah?.blok} • {item.rumah?.no_rumah}
+                      <td className="px-4 py-3 font-medium capitalize flex items-center gap-2">
+                        <span className="font-black">
+                          {item.rumah?.blok}/{item.rumah?.no_rumah}
+                        </span>
+                        <span>•</span>
+                        <span>{item.rumah?.warga?.nama}</span>
                       </td>
 
                       {/* PERIODE */}
@@ -392,22 +399,9 @@ export default function IPLPage() {
                         Rp {Number(item.nominal).toLocaleString("id-ID")}
                       </td>
 
-                      {/* STATUS */}
-                      <td className="px-4 py-3">
-                        <span
-                          className={`px-3 py-1 rounded-full text-xs font-medium ${
-                            isLunas
-                              ? "bg-green-100 text-green-700"
-                              : "bg-yellow-100 text-yellow-700"
-                          }`}
-                        >
-                          {isLunas ? "LUNAS" : "BELUM"}
-                        </span>
-                      </td>
-
                       {/* AKSI */}
-                      <td className="px-4 py-3 text-right">
-                        {!isLunas && (
+                      <td className="px-4 py-3 text-center">
+                        {!isLunas ? (
                           <button
                             disabled={actionLoading}
                             onClick={() =>
@@ -418,10 +412,14 @@ export default function IPLPage() {
                                 item.rumah?.no_rumah,
                               )
                             }
-                            className="bg-green-600 text-white px-3 py-1 rounded-lg text-xs disabled:opacity-50"
+                            className="bg-yellow-700 text-white px-3 py-1 rounded-lg text-xs disabled:opacity-50"
                           >
                             Bayar
                           </button>
+                        ) : (
+                          <span className="px-3 py-1 rounded-full text-xs font-medium bg-green-100 text-green-700">
+                            LUNAS
+                          </span>
                         )}
                       </td>
                     </tr>
