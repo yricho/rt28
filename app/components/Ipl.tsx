@@ -3,26 +3,37 @@
 import { useEffect, useMemo, useState } from "react";
 import { supabase } from "../lib/supabase";
 import * as XLSX from "xlsx";
+import { toast } from "sonner";
 
 const PAGE_SIZE = 10;
 
+type TagihanIPL = {
+  id: number;
+  bulan: string;
+  tahun: number;
+  nominal: number;
+  status: "lunas" | "belum_bayar";
+  created_at: string;
+  rumah: {
+    id: number;
+    no_rumah: string;
+    blok: string;
+    warga: { nama: string; no_hp: string } | null;
+  } | null;
+};
+
 export default function IPLPage() {
-  const [ipl, setIPL] = useState<any[]>([]);
+  const [ipl, setIPL] = useState<TagihanIPL[]>([]);
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState(false);
+  const [fetchError, setFetchError] = useState<string | null>(null);
 
-  // MODAL
   const [openModal, setOpenModal] = useState(false);
 
-  // SEARCH
   const [search, setSearch] = useState("");
-
-  // FILTER
   const [filterBulan, setFilterBulan] = useState("");
-  const [filterTahun, setFilterTahun] = useState("");
   const [filterBlok, setFilterBlok] = useState("");
 
-  // PAGINATION
   const [page, setPage] = useState(1);
 
   const [form, setForm] = useState({
@@ -36,85 +47,56 @@ export default function IPLPage() {
   // =========================
   async function getDataIPL() {
     setLoading(true);
+    setFetchError(null);
 
-    const { data, error } = await supabase
-      .from("tagihan_ipl")
-      .select(
-        `
-        id,
-        bulan,
-        tahun,
-        nominal,
-        status,
-        created_at,
-        rumah:rumah_id (
-          id,
-          no_rumah,
-          blok,
-          warga (
-            nama,
-            no_hp
-          )
+    try {
+      const { data, error } = await supabase
+        .from("tagihan_ipl")
+        .select(
+          `id, bulan, tahun, nominal, status, created_at,
+           rumah:rumah_id (id, no_rumah, blok, warga (nama, no_hp))`,
         )
-      `,
-      )
-      .order("created_at", { ascending: false });
+        .order("created_at", { ascending: false });
 
-    if (error) {
-      console.error("IPL ERROR:", error.message);
-      setIPL([]);
+      if (error) throw new Error(error.message);
+      setIPL((data as unknown as TagihanIPL[]) || []);
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "Gagal memuat data IPL";
+      setFetchError(msg);
+      toast.error(msg);
+    } finally {
       setLoading(false);
-      return;
     }
-
-    setIPL(data || []);
-    setLoading(false);
   }
 
   useEffect(() => {
     getDataIPL();
   }, []);
 
-  // =========================
-  // RESET PAGE
-  // =========================
   useEffect(() => {
     setPage(1);
-  }, [search, filterBulan, filterTahun, filterBlok]);
+  }, [search, filterBulan, filterBlok]);
 
   // =========================
   // FILTER DATA
   // =========================
   const filteredIPL = useMemo(() => {
     return ipl.filter((item) => {
-      const nama = item.rumah?.warga?.nama || "";
-
+      const nama = item.rumah?.warga?.nama ?? "";
       const matchSearch = nama.toLowerCase().includes(search.toLowerCase());
-
       const matchBulan = filterBulan
         ? item.bulan.toLowerCase() === filterBulan.toLowerCase()
         : true;
-
-      const matchTahun = filterTahun
-        ? String(item.tahun) === filterTahun
-        : true;
-
       const matchBlok = filterBlok ? item.rumah?.blok === filterBlok : true;
-
-      return matchSearch && matchBulan && matchTahun && matchBlok;
+      return matchSearch && matchBulan && matchBlok;
     });
-  }, [ipl, search, filterBulan, filterTahun, filterBlok]);
+  }, [ipl, search, filterBulan, filterBlok]);
 
-  // =========================
-  // PAGINATION
-  // =========================
   const totalPages = Math.ceil(filteredIPL.length / PAGE_SIZE);
 
   const paginatedData = useMemo(() => {
     const start = (page - 1) * PAGE_SIZE;
-    const end = start + PAGE_SIZE;
-
-    return filteredIPL.slice(start, end);
+    return filteredIPL.slice(start, start + PAGE_SIZE);
   }, [filteredIPL, page]);
 
   // =========================
@@ -122,36 +104,25 @@ export default function IPLPage() {
   // =========================
   function exportExcel() {
     if (filteredIPL.length === 0) {
-      alert("Tidak ada data untuk diexport");
+      toast.error("Tidak ada data untuk diexport");
       return;
     }
 
     const dataExport = filteredIPL.map((item, index) => ({
       No: index + 1,
-
-      Nama_Warga: item.rumah?.warga?.nama || "-",
-
-      Blok: item.rumah?.blok || "-",
-
-      No_Rumah: item.rumah?.no_rumah || "-",
-
+      Nama_Warga: item.rumah?.warga?.nama ?? "-",
+      Blok: item.rumah?.blok ?? "-",
+      No_Rumah: item.rumah?.no_rumah ?? "-",
       Periode: `${item.bulan} ${item.tahun}`,
-
       Nominal: item.nominal,
-
       Status: item.status === "lunas" ? "LUNAS" : "BELUM BAYAR",
-
-      No_HP: item.rumah?.warga?.no_hp || "-",
-
+      No_HP: item.rumah?.warga?.no_hp ?? "-",
       Created_At: new Date(item.created_at).toLocaleString("id-ID"),
     }));
 
     const worksheet = XLSX.utils.json_to_sheet(dataExport);
-
     const workbook = XLSX.utils.book_new();
-
     XLSX.utils.book_append_sheet(workbook, worksheet, "Data IPL");
-
     XLSX.writeFile(workbook, `data-ipl-${Date.now()}.xlsx`);
   }
 
@@ -160,50 +131,44 @@ export default function IPLPage() {
   // =========================
   async function handleGenerate() {
     if (!form.bulan || !form.nominal) {
-      alert("Bulan & nominal wajib diisi");
+      toast.error("Bulan & nominal wajib diisi");
       return;
     }
 
     setActionLoading(true);
 
-    const { data: rumah, error } = await supabase.from("rumah").select("id");
+    try {
+      const { data: rumah, error: rumahError } = await supabase
+        .from("rumah")
+        .select("id");
 
-    if (error) {
-      alert(error.message);
+      if (rumahError) throw new Error(rumahError.message);
+      if (!rumah || rumah.length === 0) throw new Error("Tidak ada data rumah");
+
+      const tagihan = rumah.map((r) => ({
+        rumah_id: r.id,
+        bulan: form.bulan,
+        tahun: form.tahun,
+        nominal: form.nominal,
+        status: "belum_bayar",
+      }));
+
+      const { error: insertError } = await supabase
+        .from("tagihan_ipl")
+        .insert(tagihan);
+
+      if (insertError) throw new Error(insertError.message);
+
+      setOpenModal(false);
+      setForm({ bulan: "", tahun: new Date().getFullYear(), nominal: 0 });
+      await getDataIPL();
+      toast.success("IPL berhasil digenerate");
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "Gagal generate IPL";
+      toast.error(msg);
+    } finally {
       setActionLoading(false);
-      return;
     }
-
-    const tagihan = (rumah || []).map((r) => ({
-      rumah_id: r.id,
-      bulan: form.bulan,
-      tahun: form.tahun,
-      nominal: form.nominal,
-      status: "belum_bayar",
-    }));
-
-    const { error: insertError } = await supabase
-      .from("tagihan_ipl")
-      .insert(tagihan);
-
-    setActionLoading(false);
-
-    if (insertError) {
-      alert(insertError.message);
-      return;
-    }
-
-    setOpenModal(false);
-
-    setForm({
-      bulan: "",
-      tahun: new Date().getFullYear(),
-      nominal: 0,
-    });
-
-    await getDataIPL();
-
-    alert("IPL berhasil digenerate");
   }
 
   // =========================
@@ -217,31 +182,48 @@ export default function IPLPage() {
   ) {
     const wargaDisplayName = wargaNama
       .toLowerCase()
-      .replace(/\b\w/g, (l: string) => l.toUpperCase());
+      .replace(/\b\w/g, (l) => l.toUpperCase());
 
-    if (
-      !confirm(
-        `Konfirmasi pembayaran IPL untuk ${wargaDisplayName} (${blok}/${noRumah}) ?`,
-      )
-    )
-      return;
+    const confirmed = window.confirm(
+      `Konfirmasi pembayaran IPL untuk ${wargaDisplayName} (${blok}/${noRumah})?`,
+    );
+    if (!confirmed) return;
 
     setActionLoading(true);
 
-    const { error } = await supabase
-      .from("tagihan_ipl")
-      .update({ status: "lunas" })
-      .eq("id", id);
+    try {
+      const { error } = await supabase
+        .from("tagihan_ipl")
+        .update({ status: "lunas" })
+        .eq("id", id);
 
-    setActionLoading(false);
+      if (error) throw new Error(error.message);
 
-    if (error) {
-      alert(error.message);
-      return;
+      await getDataIPL();
+      toast.success(`Pembayaran ${wargaDisplayName} berhasil dicatat`);
+    } catch (err) {
+      const msg =
+        err instanceof Error ? err.message : "Gagal memproses pembayaran";
+      toast.error(msg);
+    } finally {
+      setActionLoading(false);
     }
-
-    getDataIPL();
   }
+
+  const BULAN_OPTIONS = [
+    "Januari",
+    "Februari",
+    "Maret",
+    "April",
+    "Mei",
+    "Juni",
+    "Juli",
+    "Agustus",
+    "September",
+    "Oktober",
+    "November",
+    "Desember",
+  ];
 
   // =========================
   // LOADING
@@ -255,30 +237,47 @@ export default function IPLPage() {
   }
 
   // =========================
+  // ERROR
+  // =========================
+  if (fetchError) {
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center gap-4 text-gray-500">
+        <p className="text-red-500">{fetchError}</p>
+        <button
+          onClick={getDataIPL}
+          className="px-4 py-2 bg-black text-white rounded-xl text-sm"
+        >
+          Coba Lagi
+        </button>
+      </div>
+    );
+  }
+
+  // =========================
   // UI
   // =========================
   return (
     <div className="min-h-screen bg-gray-50 p-4 md:p-6">
       <div className="max-w-6xl mx-auto">
         {/* HEADER */}
-        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-5">
-          <div>
-            <h1 className="text-3xl font-bold">Data IPL</h1>
-
-            <p className="text-gray-500">Tagihan iuran lingkungan</p>
+        <div className="mb-6">
+          <div className="mb-4">
+            <h1 className="text-2xl font-bold tracking-tight">Data IPL</h1>
+            <p className="text-sm text-gray-500 mt-1">
+              Tagihan iuran lingkungan warga
+            </p>
           </div>
 
-          <div className="flex gap-2">
+          <div className="grid grid-cols-2 gap-3">
             <button
               onClick={exportExcel}
-              className="bg-green-600 hover:bg-green-700 text-white px-5 py-3 rounded-xl"
+              className="h-12 rounded-xl bg-green-600 text-white font-medium shadow-sm active:scale-95 transition"
             >
               Export Excel
             </button>
-
             <button
               onClick={() => setOpenModal(true)}
-              className="bg-black text-white px-5 py-3 rounded-xl"
+              className="h-12 rounded-xl bg-black text-white font-medium shadow-sm active:scale-95 transition"
             >
               + Generate IPL
             </button>
@@ -286,101 +285,177 @@ export default function IPLPage() {
         </div>
 
         {/* FILTER */}
-        <div className="bg-white border rounded-2xl p-4 mb-5">
-          <div className="grid md:grid-cols-4 gap-3">
-            {/* SEARCH */}
+        <div className="bg-white rounded-3xl border border-gray-200 p-4 mb-6 shadow-sm">
+          <div className="mb-4">
+            <h2 className="font-semibold text-gray-900">Filter Data</h2>
+            <p className="text-sm text-gray-500">
+              Cari tagihan berdasarkan nama, blok atau periode
+            </p>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
             <input
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder="Cari nama warga..."
-              className="border px-4 py-3 rounded-xl outline-none"
+              className="w-full h-12 rounded-xl border border-gray-200 px-4 text-sm outline-none focus:ring-2 focus:ring-black focus:border-transparent"
             />
-
-            {/* TAHUN */}
-            {/* <input
-              type="number"
-              value={filterTahun}
-              onChange={(e) => setFilterTahun(e.target.value)}
-              placeholder="Filter Tahun"
-              className="border px-4 py-3 rounded-xl outline-none"
-            /> */}
-
-            {/* BLOK */}
             <input
               type="text"
               value={filterBlok}
               onChange={(e) => setFilterBlok(e.target.value.toUpperCase())}
               placeholder="Blok"
-              className="border px-4 py-3 rounded-xl outline-none"
+              className="w-full h-12 rounded-xl border border-gray-200 px-4 text-sm outline-none focus:ring-2 focus:ring-black focus:border-transparent"
             />
-
-            {/* BULAN */}
             <select
               value={filterBulan}
               onChange={(e) => setFilterBulan(e.target.value)}
-              className="border px-4 py-3 rounded-xl outline-none"
+              className="w-full h-12 rounded-xl border border-gray-200 px-4 text-sm outline-none focus:ring-2 focus:ring-black focus:border-transparent"
             >
               <option value="">Semua Bulan</option>
-              <option value="Januari">Januari</option>
-              <option value="Februari">Februari</option>
-              <option value="Maret">Maret</option>
-              <option value="April">April</option>
-              <option value="Mei">Mei</option>
-              <option value="Juni">Juni</option>
-              <option value="Juli">Juli</option>
-              <option value="Agustus">Agustus</option>
-              <option value="September">September</option>
-              <option value="Oktober">Oktober</option>
-              <option value="November">November</option>
-              <option value="Desember">Desember</option>
+              {BULAN_OPTIONS.map((b) => (
+                <option key={b} value={b}>
+                  {b}
+                </option>
+              ))}
             </select>
-
-            {/* RESET */}
             <button
               onClick={() => {
                 setSearch("");
                 setFilterBulan("");
-                setFilterTahun("");
                 setFilterBlok("");
               }}
-              className="border rounded-xl px-4 py-3 hover:bg-gray-50"
+              className="h-12 rounded-xl border border-gray-200 font-medium hover:bg-gray-50 transition"
             >
               Reset Filter
             </button>
           </div>
         </div>
 
+        {/* MOBILE CARD */}
+        <div className="md:hidden space-y-3">
+          {paginatedData.length === 0 && (
+            <div className="bg-white rounded-2xl border p-8 text-center text-gray-500">
+              Tidak ada data IPL
+            </div>
+          )}
+          {paginatedData.map((item) => {
+            const isLunas = item.status === "lunas";
+            return (
+              <div
+                key={item.id}
+                className={`relative bg-white border rounded-2xl p-4 overflow-hidden transition-shadow hover:shadow-md ${
+                  isLunas ? "border-green-100" : "border-gray-200"
+                }`}
+              >
+                {/* Accent strip kiri */}
+                <div
+                  className={`absolute left-0 top-0 bottom-0 w-1 rounded-l-2xl ${
+                    isLunas ? "bg-green-400" : "bg-yellow-400"
+                  }`}
+                />
+
+                <div className="pl-3">
+                  {/* HEADER */}
+                  <div className="flex justify-between items-start">
+                    <div>
+                      <div className="flex items-center gap-1.5">
+                        <span className="text-xs font-semibold text-gray-400 uppercase tracking-wide">
+                          Blok
+                        </span>
+                        <span className="font-bold text-base text-gray-900">
+                          {item.rumah?.blok}/{item.rumah?.no_rumah}
+                        </span>
+                      </div>
+                      <p className="text-sm text-gray-600 capitalize mt-0.5">
+                        {item.rumah?.warga?.nama ?? "-"}
+                      </p>
+                    </div>
+
+                    <span
+                      className={`px-2.5 py-1 rounded-full text-[11px] font-semibold tracking-wide ${
+                        isLunas
+                          ? "bg-green-50 text-green-700 ring-1 ring-green-200"
+                          : "bg-yellow-50 text-yellow-700 ring-1 ring-yellow-200"
+                      }`}
+                    >
+                      {isLunas ? "✓ Lunas" : "Belum Bayar"}
+                    </span>
+                  </div>
+
+                  {/* DIVIDER */}
+                  <div className="border-t border-gray-100 my-3" />
+
+                  {/* NOMINAL & PERIODE */}
+                  <div className="flex items-end justify-between">
+                    <div>
+                      <p className="text-xs text-gray-400 mb-0.5">Periode</p>
+                      <p className="text-sm font-medium text-gray-700">
+                        {item.bulan} {item.tahun}
+                      </p>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-xs text-gray-400 mb-0.5">Nominal</p>
+                      <p className="text-base font-bold text-gray-900">
+                        Rp {Number(item.nominal).toLocaleString("id-ID")}
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* BUTTON */}
+                  {!isLunas && (
+                    <button
+                      disabled={actionLoading}
+                      onClick={() =>
+                        bayarIpl(
+                          item.id,
+                          item.rumah?.warga?.nama,
+                          item.rumah?.blok,
+                          item.rumah?.no_rumah,
+                        )
+                      }
+                      className="mt-4 h-10 w-full rounded-xl bg-green-600 hover:bg-green-700 active:scale-95 text-white text-sm font-semibold transition-all disabled:opacity-50"
+                    >
+                      Bayar IPL
+                    </button>
+                  )}
+
+                  {isLunas && (
+                    <div className="mt-4 h-10 w-full rounded-xl bg-green-50 flex items-center justify-center gap-1.5 text-green-600 text-sm font-medium">
+                      <span>✓</span>
+                      <span>Sudah Lunas</span>
+                    </div>
+                  )}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+
         {/* TABLE */}
-        <div className="bg-white border rounded-2xl overflow-hidden">
+        <div className="hidden md:block bg-white border rounded-2xl overflow-hidden">
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead className="bg-gray-50 text-xs uppercase text-gray-600">
                 <tr>
                   <th className="px-4 py-3 text-left">No.Rumah / Nama</th>
-
                   <th className="px-4 py-3 text-left">Periode</th>
-
                   <th className="px-4 py-3 text-left">Nominal</th>
-
                   <th className="px-4 py-3 text-center">Aksi</th>
                 </tr>
               </thead>
-
               <tbody>
                 {paginatedData.length === 0 && (
                   <tr>
-                    <td colSpan={6} className="text-center py-10 text-gray-500">
+                    <td colSpan={4} className="text-center py-10 text-gray-500">
                       Tidak ada data IPL
                     </td>
                   </tr>
                 )}
-
                 {paginatedData.map((item) => {
                   const isLunas = item.status === "lunas";
-
                   return (
                     <tr key={item.id} className="border-t">
-                      {/* NAMA */}
                       <td className="px-4 py-3 font-medium capitalize flex items-center gap-2">
                         <span className="font-black">
                           {item.rumah?.blok}/{item.rumah?.no_rumah}
@@ -388,18 +463,12 @@ export default function IPLPage() {
                         <span>•</span>
                         <span>{item.rumah?.warga?.nama}</span>
                       </td>
-
-                      {/* PERIODE */}
                       <td className="px-4 py-3">
                         {item.bulan} {item.tahun}
                       </td>
-
-                      {/* NOMINAL */}
                       <td className="px-4 py-3 font-semibold">
                         Rp {Number(item.nominal).toLocaleString("id-ID")}
                       </td>
-
-                      {/* AKSI */}
                       <td className="px-4 py-3 text-center">
                         {!isLunas ? (
                           <button
@@ -434,27 +503,24 @@ export default function IPLPage() {
         {totalPages > 1 && (
           <div className="flex flex-col md:flex-row items-center justify-between gap-4 mt-5">
             <p className="text-sm text-gray-500">
-              Menampilkan {(page - 1) * PAGE_SIZE + 1} -{" "}
+              Menampilkan {(page - 1) * PAGE_SIZE + 1}–
               {Math.min(page * PAGE_SIZE, filteredIPL.length)} dari{" "}
               {filteredIPL.length} data
             </p>
-
             <div className="flex items-center gap-2">
               <button
                 disabled={page === 1}
-                onClick={() => setPage((prev) => prev - 1)}
+                onClick={() => setPage((p) => p - 1)}
                 className="px-4 py-2 border rounded-xl disabled:opacity-40 disabled:cursor-not-allowed"
               >
                 Prev
               </button>
-
               <div className="px-4 py-2 text-sm font-medium">
                 {page} / {totalPages}
               </div>
-
               <button
                 disabled={page === totalPages}
-                onClick={() => setPage((prev) => prev + 1)}
+                onClick={() => setPage((p) => p + 1)}
                 className="px-4 py-2 border rounded-xl disabled:opacity-40 disabled:cursor-not-allowed"
               >
                 Next
@@ -463,73 +529,45 @@ export default function IPLPage() {
           </div>
         )}
 
-        {/* TOTAL */}
-        <div className="mt-4 text-sm text-gray-500">
-          Total Data: {filteredIPL.length}
-        </div>
-
-        {/* MODAL */}
+        {/* MODAL GENERATE */}
         {openModal && (
           <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
             <div className="bg-white w-full max-w-md p-6 rounded-2xl">
               <h2 className="text-xl font-bold mb-4">Generate IPL</h2>
 
-              {/* BULAN */}
               <select
                 value={form.bulan}
-                onChange={(e) =>
-                  setForm({
-                    ...form,
-                    bulan: e.target.value,
-                  })
-                }
+                onChange={(e) => setForm({ ...form, bulan: e.target.value })}
                 className="w-full border px-3 py-2 rounded-xl mb-3"
               >
                 <option value="">Pilih Bulan</option>
-
-                <option value="Januari">Januari</option>
-                <option value="Februari">Februari</option>
-                <option value="Maret">Maret</option>
-                <option value="April">April</option>
-                <option value="Mei">Mei</option>
-                <option value="Juni">Juni</option>
-                <option value="Juli">Juli</option>
-                <option value="Agustus">Agustus</option>
-                <option value="September">September</option>
-                <option value="Oktober">Oktober</option>
-                <option value="November">November</option>
-                <option value="Desember">Desember</option>
+                {BULAN_OPTIONS.map((b) => (
+                  <option key={b} value={b}>
+                    {b}
+                  </option>
+                ))}
               </select>
 
-              {/* TAHUN */}
               <input
                 type="number"
                 placeholder="Tahun"
                 value={form.tahun}
                 onChange={(e) =>
-                  setForm({
-                    ...form,
-                    tahun: Number(e.target.value),
-                  })
+                  setForm({ ...form, tahun: Number(e.target.value) })
                 }
                 className="w-full border px-3 py-2 rounded-xl mb-3"
               />
 
-              {/* NOMINAL */}
               <input
                 type="number"
                 placeholder="Nominal"
-                value={form.nominal}
+                value={form.nominal || ""}
                 onChange={(e) =>
-                  setForm({
-                    ...form,
-                    nominal: Number(e.target.value),
-                  })
+                  setForm({ ...form, nominal: Number(e.target.value) })
                 }
                 className="w-full border px-3 py-2 rounded-xl mb-4"
               />
 
-              {/* BUTTON */}
               <div className="flex gap-2">
                 <button
                   onClick={() => setOpenModal(false)}
@@ -537,7 +575,6 @@ export default function IPLPage() {
                 >
                   Batal
                 </button>
-
                 <button
                   disabled={actionLoading}
                   onClick={handleGenerate}

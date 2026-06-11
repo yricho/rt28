@@ -147,7 +147,7 @@ export default function Home() {
                     <p className="text-zinc-400 text-sm">Dashboard RT28</p>
 
                     <h2 className="text-2xl font-bold mt-1">
-                      Smart Resident System
+                      Perumahan Daru Raya
                     </h2>
                   </div>
 
@@ -193,7 +193,7 @@ export default function Home() {
                 </div>
 
                 <div className="mt-8 text-sm text-zinc-500">
-                  RT28 Management System © 2026
+                  RT28 Daru Raya © 2026
                 </div>
               </div>
 
