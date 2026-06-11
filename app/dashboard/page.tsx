@@ -184,7 +184,7 @@ export default function DashboardPage() {
 
       default:
         return (
-          <div>
+          <div className="px-6">
             {/* STATS */}
             <Stats />
 
@@ -328,7 +328,7 @@ export default function DashboardPage() {
         </div>
 
         {/* CONTENT SECTION */}
-        <div className="p-6 md:p-8">{renderContent()}</div>
+        <div className="py-6 md:p-8">{renderContent()}</div>
       </main>
     </div>
   );
