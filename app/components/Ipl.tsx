@@ -1,9 +1,11 @@
 "use client";
 
+import { X } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
-import { supabase } from "../lib/supabase";
-import * as XLSX from "xlsx";
 import { toast } from "sonner";
+import * as XLSX from "xlsx";
+import { supabase } from "../lib/supabase";
+import DetailIpl from "./detailipl";
 
 const PAGE_SIZE = 10;
 
@@ -13,7 +15,10 @@ type TagihanIPL = {
   tahun: number;
   nominal: number;
   status: "lunas" | "belum_bayar";
+  created_by: string;
   created_at: string;
+  updated_at: string;
+  updated_by: string | null;
   rumah: {
     id: number;
     no_rumah: string;
@@ -29,6 +34,8 @@ export default function IPLPage() {
   const [fetchError, setFetchError] = useState<string | null>(null);
 
   const [openModal, setOpenModal] = useState(false);
+  const [openModalDetail, setOpenModalDetail] = useState(false);
+  const [selectedIpl, setSelectedIpl] = useState<TagihanIPL | null>(null);
 
   const [search, setSearch] = useState("");
   const [filterBulan, setFilterBulan] = useState("");
@@ -53,9 +60,29 @@ export default function IPLPage() {
       const { data, error } = await supabase
         .from("tagihan_ipl")
         .select(
-          `id, bulan, tahun, nominal, status, created_at,
-           rumah:rumah_id (id, no_rumah, blok, warga (nama, no_hp))`,
+          `
+    id,
+    bulan,
+    tahun,
+    nominal,
+    status,
+    created_by,
+    created_at,
+    updated_at,
+    updated_by,
+    rumah:rumah_id!inner (
+      id,
+      no_rumah,
+      blok,
+      status,
+      warga (
+        nama,
+        no_hp
+      )
+    )
+  `,
         )
+        .eq("rumah.status", "active")
         .order("created_at", { ascending: false });
 
       if (error) throw new Error(error.message);
@@ -99,31 +126,76 @@ export default function IPLPage() {
     return filteredIPL.slice(start, start + PAGE_SIZE);
   }, [filteredIPL, page]);
 
-  // =========================
-  // EXPORT EXCEL
-  // =========================
+  const sortedIPL = [...filteredIPL].sort((a, b) =>
+    (a.rumah?.warga?.nama || "").localeCompare(
+      b.rumah?.warga?.nama || "",
+      "id",
+      {
+        sensitivity: "base",
+      },
+    ),
+  );
+
   function exportExcel() {
     if (filteredIPL.length === 0) {
       toast.error("Tidak ada data untuk diexport");
       return;
     }
 
-    const dataExport = filteredIPL.map((item, index) => ({
-      No: index + 1,
-      Nama_Warga: item.rumah?.warga?.nama ?? "-",
-      Blok: item.rumah?.blok ?? "-",
-      No_Rumah: item.rumah?.no_rumah ?? "-",
-      Periode: `${item.bulan} ${item.tahun}`,
-      Nominal: item.nominal,
-      Status: item.status === "lunas" ? "LUNAS" : "BELUM BAYAR",
-      No_HP: item.rumah?.warga?.no_hp ?? "-",
-      Created_At: new Date(item.created_at).toLocaleString("id-ID"),
-    }));
+    const totalLunas = filteredIPL
+      .filter((item) => item.status?.toLowerCase() === "lunas")
+      .reduce((total, item) => total + Number(item.nominal || 0), 0);
 
-    const worksheet = XLSX.utils.json_to_sheet(dataExport);
+    const totalBelumBayar = filteredIPL
+      .filter((item) => item.status?.toLowerCase() !== "lunas")
+      .reduce((total, item) => total + Number(item.nominal || 0), 0);
+
+    const totalTagihan = filteredIPL.reduce(
+      (total, item) => total + Number(item.nominal || 0),
+      0,
+    );
+
+    const rows = [
+      ["RINGKASAN IPL"],
+      [],
+      ["Total Tagihan", totalTagihan],
+      ["Total Sudah Dibayar", totalLunas],
+      ["Total Belum Dibayar", totalBelumBayar],
+      [],
+      [
+        "No",
+        "Nama Warga",
+        "Blok",
+        "No Rumah",
+        "Periode",
+        "Nominal",
+        "Status",
+        "Updated At",
+        "Updated By",
+      ],
+      ...sortedIPL.map((item, index) => [
+        index + 1,
+        item.rumah?.warga?.nama?.toUpperCase() ?? "-",
+        item.rumah?.blok ?? "-",
+        item.rumah?.no_rumah ?? "-",
+        `${item.bulan} ${item.tahun}`,
+        item.nominal,
+        item.status === "lunas" ? "LUNAS" : "BELUM BAYAR",
+        new Date(item.updated_at).toLocaleString("id-ID"),
+        item.updated_by ?? "-",
+      ]),
+    ];
+
+    const worksheet = XLSX.utils.aoa_to_sheet(rows);
+
     const workbook = XLSX.utils.book_new();
+
     XLSX.utils.book_append_sheet(workbook, worksheet, "Data IPL");
-    XLSX.writeFile(workbook, `data-ipl-${Date.now()}.xlsx`);
+
+    XLSX.writeFile(
+      workbook,
+      `data-ipl-${new Date().toISOString().split("T")[0]}.xlsx`,
+    );
   }
 
   // =========================
@@ -151,6 +223,10 @@ export default function IPLPage() {
         tahun: form.tahun,
         nominal: form.nominal,
         status: "belum_bayar",
+        created_by: "Admin",
+        updated_by: "Admin",
+        updated_at: new Date().toISOString(),
+        created_at: new Date().toISOString(),
       }));
 
       const { error: insertError } = await supabase
@@ -194,7 +270,11 @@ export default function IPLPage() {
     try {
       const { error } = await supabase
         .from("tagihan_ipl")
-        .update({ status: "lunas" })
+        .update({
+          status: "lunas",
+          updated_by: "Apri",
+          updated_at: new Date().toISOString(),
+        })
         .eq("id", id);
 
       if (error) throw new Error(error.message);
@@ -367,9 +447,15 @@ export default function IPLPage() {
                           {item.rumah?.blok}/{item.rumah?.no_rumah}
                         </span>
                       </div>
-                      <p className="text-sm text-gray-600 capitalize mt-0.5">
+                      <div
+                        className="h-0.5 w-full bg-gray-100 my-1"
+                        onClick={() => {
+                          setSelectedIpl(item);
+                          setOpenModalDetail(true);
+                        }}
+                      >
                         {item.rumah?.warga?.nama ?? "-"}
-                      </p>
+                      </div>
                     </div>
 
                     <span
@@ -421,9 +507,9 @@ export default function IPLPage() {
                   )}
 
                   {isLunas && (
-                    <div className="mt-4 h-10 w-full rounded-xl bg-green-50 flex items-center justify-center gap-1.5 text-green-600 text-sm font-medium">
+                    <div className="mt-4 h-10 w-full rounded-xl bg-green-50 flex items-center justify-center gap-1.5 text-green-600 text-sm font-black capitalize">
                       <span>✓</span>
-                      <span>Sudah Lunas</span>
+                      <span>Ditagih oleh: {item.updated_by}</span>
                     </div>
                   )}
                 </div>
@@ -582,6 +668,27 @@ export default function IPLPage() {
                 >
                   {actionLoading ? "Loading..." : "Generate"}
                 </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* MODAL DETAIL */}
+
+        {openModalDetail && (
+          <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4">
+            <div className="relative bg-white w-full max-w-md rounded-3xl shadow-2xl overflow-hidden">
+              {/* CLOSE BUTTON */}
+              <button
+                onClick={() => setOpenModalDetail(false)}
+                className="absolute top-4 right-4 z-20 h-10 w-10 rounded-full bg-white shadow-md border border-gray-200 flex items-center justify-center hover:bg-gray-50 transition"
+              >
+                <X size={18} />
+              </button>
+
+              {/* CONTENT */}
+              <div className="max-h-[90vh] overflow-y-auto">
+                <DetailIpl data={selectedIpl} />
               </div>
             </div>
           </div>
