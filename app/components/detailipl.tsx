@@ -141,66 +141,103 @@ export default function DetailIpl({ data }: { data: any }) {
           {iplData?.map((item) => {
             const isLunas = item.status?.toLowerCase() === "lunas";
 
+            const adminName = (item.updated_by || "Admin")
+              .split("@")[0]
+              .replace(/\./g, " ")
+              .replace(/\b\w/g, (c: any) => c.toUpperCase());
+
             return (
-              <div key={item.id} className="bg-white rounded-3xl p-4 shadow-sm">
-                {/* HEADER CARD */}
-                <div className="flex items-start justify-between">
-                  <div>
-                    <p className="font-bold text-base">
-                      {item.bulan} {item.tahun}
-                    </p>
+              <div
+                key={item.id}
+                className={`overflow-hidden rounded-3xl border bg-white shadow-sm ${
+                  isLunas ? "border-green-100" : "border-yellow-100"
+                }`}
+              >
+                {/* TOP ACCENT */}
+                <div
+                  className={`h-1 w-full ${
+                    isLunas ? "bg-green-500" : "bg-yellow-500"
+                  }`}
+                />
 
-                    <p className="text-gray-500 text-sm mt-1">Tagihan IPL</p>
-                  </div>
+                <div className="p-4">
+                  {/* HEADER */}
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <p className="font-bold text-lg text-gray-900">
+                        {item.bulan} {item.tahun}
+                      </p>
 
-                  <span
-                    className={`text-[11px] font-semibold px-3 py-1 rounded-full ${
-                      isLunas
-                        ? "bg-green-100 text-green-700"
-                        : "bg-yellow-100 text-yellow-700"
-                    }`}
-                  >
-                    {isLunas ? "LUNAS" : "BELUM BAYAR"}
-                  </span>
-                </div>
-
-                {/* NOMINAL */}
-                <div className="mt-4 flex items-center justify-between">
-                  <p className="text-sm text-gray-500">Nominal</p>
-
-                  <p className="font-bold text-lg">
-                    Rp {Number(item.nominal || 0).toLocaleString("id-ID")}
-                  </p>
-                </div>
-
-                {/* INFO PEMBAYARAN */}
-                {isLunas && (
-                  <div className="mt-4 pt-4 border-t border-green-100">
-                    <div className="flex items-center gap-2 text-sm text-green-700">
-                      <span>✅</span>
-
-                      <span>
-                        Lunas oleh{" "}
-                        <span className="font-semibold">
-                          {item.updated_by || "Admin"}
-                        </span>
-                      </span>
+                      <p className="text-sm text-gray-500">Tagihan IPL</p>
                     </div>
 
-                    {item.updated_at && (
-                      <p className="text-xs text-gray-500 mt-2">
-                        Dibayar pada{" "}
-                        {new Date(item.updated_at).toLocaleString("id-ID", {
-                          day: "numeric",
-                          month: "long",
-                          year: "numeric",
-                          hour: "2-digit",
-                          minute: "2-digit",
-                        })}
-                      </p>
-                    )}
+                    <div
+                      className={`rounded-full px-3 py-1.5 text-[11px] font-bold ${
+                        isLunas
+                          ? "bg-green-100 text-green-700"
+                          : "bg-yellow-100 text-yellow-700"
+                      }`}
+                    >
+                      {isLunas ? "✓ LUNAS" : "BELUM BAYAR"}
+                    </div>
                   </div>
-                )}
+
+                  {/* NOMINAL */}
+                  <div className="mt-5">
+                    <p className="text-xs uppercase tracking-wider text-gray-400">
+                      Nominal
+                    </p>
+
+                    <p className="mt-1 text-3xl font-black text-gray-900">
+                      Rp {Number(item.nominal || 0).toLocaleString("id-ID")}
+                    </p>
+                  </div>
+
+                  {/* INFO PEMBAYARAN */}
+                  {isLunas && (
+                    <div className="mt-5 rounded-2xl bg-green-50 border border-green-100 p-3">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <p className="text-[11px] uppercase tracking-wider text-green-600 font-bold">
+                            Pembayaran Berhasil
+                          </p>
+
+                          <p className="text-sm font-semibold text-gray-900 mt-1">
+                            {adminName}
+                          </p>
+                        </div>
+
+                        <div
+                          className={`rounded-full px-3 py-1.5 text-xs font-bold ${
+                            item.metode_pembayaran === "transfer"
+                              ? "bg-blue-100 text-blue-700"
+                              : "bg-amber-100 text-amber-700"
+                          }`}
+                        >
+                          {item.metode_pembayaran === "transfer"
+                            ? "💳 Transfer"
+                            : "💵 Cash"}
+                        </div>
+                      </div>
+
+                      {item.updated_at && (
+                        <div className="mt-3 border-t border-green-200 pt-3">
+                          <p className="text-xs text-gray-500">Dibayar pada</p>
+
+                          <p className="text-sm font-medium text-gray-700">
+                            {new Date(item.updated_at).toLocaleString("id-ID", {
+                              day: "numeric",
+                              month: "long",
+                              year: "numeric",
+                              hour: "2-digit",
+                              minute: "2-digit",
+                            })}
+                          </p>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
               </div>
             );
           })}

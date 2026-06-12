@@ -19,6 +19,7 @@ type TagihanIPL = {
   created_at: string;
   updated_at: string;
   updated_by: string | null;
+  metode_pembayaran?: "cash" | "transfer";
   rumah: {
     id: number;
     no_rumah: string;
@@ -40,7 +41,8 @@ export default function IPLPage() {
   const [search, setSearch] = useState("");
   const [filterBulan, setFilterBulan] = useState("");
   const [filterBlok, setFilterBlok] = useState("");
-
+  const [openMetodeModal, setOpenMetodeModal] = useState(false);
+  const [selectedMetode, setSelectedMetode] = useState("cash");
   const [page, setPage] = useState(1);
 
   const [form, setForm] = useState({
@@ -48,6 +50,20 @@ export default function IPLPage() {
     tahun: new Date().getFullYear(),
     nominal: 0,
   });
+
+  const [user, setUser] = useState<any>(null);
+
+  useEffect(() => {
+    const getUser = async () => {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+
+      setUser(user);
+    };
+
+    getUser();
+  }, []);
 
   // =========================
   // GET DATA IPL
@@ -252,6 +268,7 @@ export default function IPLPage() {
   // =========================
   async function bayarIpl(
     id: number,
+    metode: string,
     wargaNama: string = "",
     blok: string = "",
     noRumah: string = "",
@@ -261,8 +278,9 @@ export default function IPLPage() {
       .replace(/\b\w/g, (l) => l.toUpperCase());
 
     const confirmed = window.confirm(
-      `Konfirmasi pembayaran IPL untuk ${wargaDisplayName} (${blok}/${noRumah})?`,
+      `Konfirmasi pembayaran IPL untuk ${wargaDisplayName} (${blok}/${noRumah}) dengan metode ${metode}?`,
     );
+
     if (!confirmed) return;
 
     setActionLoading(true);
@@ -272,19 +290,22 @@ export default function IPLPage() {
         .from("tagihan_ipl")
         .update({
           status: "lunas",
-          updated_by: "Apri",
+          metode_pembayaran: metode,
+          updated_by: user?.email || "Admin",
           updated_at: new Date().toISOString(),
         })
         .eq("id", id);
 
-      if (error) throw new Error(error.message);
+      if (error) throw error;
 
       await getDataIPL();
+
       toast.success(`Pembayaran ${wargaDisplayName} berhasil dicatat`);
-    } catch (err) {
-      const msg =
-        err instanceof Error ? err.message : "Gagal memproses pembayaran";
-      toast.error(msg);
+
+      setOpenMetodeModal(false);
+      setSelectedIpl(null);
+    } catch (err: any) {
+      toast.error(err.message);
     } finally {
       setActionLoading(false);
     }
@@ -415,101 +436,147 @@ export default function IPLPage() {
         {/* MOBILE CARD */}
         <div className="md:hidden space-y-3">
           {paginatedData.length === 0 && (
-            <div className="bg-white rounded-2xl border p-8 text-center text-gray-500">
+            <div className="bg-white rounded-3xl border p-8 text-center text-gray-500">
               Tidak ada data IPL
             </div>
           )}
+
           {paginatedData.map((item) => {
-            const isLunas = item.status === "lunas";
+            const isLunas = item.status?.toLowerCase() === "lunas";
+
+            const penagih = item.updated_by
+              ? item.updated_by
+                  .split("@")[0]
+                  .replace(/\./g, " ")
+                  .replace(/\b\w/g, (c) => c.toUpperCase())
+              : "-";
+
             return (
               <div
                 key={item.id}
-                className={`relative bg-white border rounded-2xl p-4 overflow-hidden transition-shadow hover:shadow-md ${
-                  isLunas ? "border-green-100" : "border-gray-200"
+                className={`relative overflow-hidden rounded-3xl border bg-white p-4 shadow-sm transition-all ${
+                  isLunas ? "border-green-100" : "border-yellow-100"
                 }`}
               >
-                {/* Accent strip kiri */}
+                {/* STRIP STATUS */}
                 <div
-                  className={`absolute left-0 top-0 bottom-0 w-1 rounded-l-2xl ${
-                    isLunas ? "bg-green-400" : "bg-yellow-400"
+                  className={`absolute left-0 top-0 bottom-0 w-1.5 ${
+                    isLunas ? "bg-green-500" : "bg-yellow-500"
                   }`}
                 />
 
                 <div className="pl-3">
                   {/* HEADER */}
-                  <div className="flex justify-between items-start">
-                    <div>
-                      <div className="flex items-center gap-1.5">
-                        <span className="text-xs font-semibold text-gray-400 uppercase tracking-wide">
+                  <div className="flex items-start justify-between gap-3">
+                    <div
+                      className="flex-1 cursor-pointer"
+                      onClick={() => {
+                        setSelectedIpl(item);
+                        setOpenModalDetail(true);
+                      }}
+                    >
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs uppercase tracking-wider text-gray-400 font-semibold">
                           Blok
                         </span>
-                        <span className="font-bold text-base text-gray-900">
+
+                        <span className="font-bold text-gray-900">
                           {item.rumah?.blok}/{item.rumah?.no_rumah}
                         </span>
                       </div>
-                      <div
-                        className="h-0.5 w-full bg-gray-100 my-1"
-                        onClick={() => {
-                          setSelectedIpl(item);
-                          setOpenModalDetail(true);
-                        }}
-                      >
+
+                      <p className="mt-1 text-sm font-medium text-gray-700 uppercase">
                         {item.rumah?.warga?.nama ?? "-"}
-                      </div>
+                      </p>
                     </div>
 
                     <span
-                      className={`px-2.5 py-1 rounded-full text-[11px] font-semibold tracking-wide ${
+                      className={`shrink-0 rounded-full px-3 py-1 text-[11px] font-bold ${
                         isLunas
-                          ? "bg-green-50 text-green-700 ring-1 ring-green-200"
-                          : "bg-yellow-50 text-yellow-700 ring-1 ring-yellow-200"
+                          ? "bg-green-100 text-green-700"
+                          : "bg-yellow-100 text-yellow-700"
                       }`}
                     >
-                      {isLunas ? "✓ Lunas" : "Belum Bayar"}
+                      {isLunas ? "✓ LUNAS" : "BELUM BAYAR"}
                     </span>
                   </div>
 
                   {/* DIVIDER */}
-                  <div className="border-t border-gray-100 my-3" />
+                  <div className="my-4 border-t border-gray-100" />
 
-                  {/* NOMINAL & PERIODE */}
+                  {/* DETAIL */}
                   <div className="flex items-end justify-between">
                     <div>
-                      <p className="text-xs text-gray-400 mb-0.5">Periode</p>
-                      <p className="text-sm font-medium text-gray-700">
+                      <p className="text-xs text-gray-400">Periode</p>
+
+                      <p className="font-semibold text-gray-700">
                         {item.bulan} {item.tahun}
                       </p>
                     </div>
+
                     <div className="text-right">
-                      <p className="text-xs text-gray-400 mb-0.5">Nominal</p>
-                      <p className="text-base font-bold text-gray-900">
+                      <p className="text-xs text-gray-400">Nominal</p>
+
+                      <p className="text-lg font-black text-gray-900">
                         Rp {Number(item.nominal).toLocaleString("id-ID")}
                       </p>
                     </div>
                   </div>
 
-                  {/* BUTTON */}
-                  {!isLunas && (
+                  {/* STATUS ACTION */}
+                  {!isLunas ? (
                     <button
                       disabled={actionLoading}
-                      onClick={() =>
-                        bayarIpl(
-                          item.id,
-                          item.rumah?.warga?.nama,
-                          item.rumah?.blok,
-                          item.rumah?.no_rumah,
-                        )
-                      }
-                      className="mt-4 h-10 w-full rounded-xl bg-green-600 hover:bg-green-700 active:scale-95 text-white text-sm font-semibold transition-all disabled:opacity-50"
+                      onClick={() => {
+                        setSelectedIpl(item);
+                        setSelectedMetode("cash");
+                        setOpenMetodeModal(true);
+                      }}
+                      className="mt-4 h-11 w-full rounded-2xl bg-green-600 text-white font-semibold active:scale-[0.98] transition-all disabled:opacity-50"
                     >
                       Bayar IPL
                     </button>
-                  )}
+                  ) : (
+                    <div className="mt-4 rounded-2xl border border-green-100 bg-green-50 p-3">
+                      <div className="flex items-center justify-between gap-3">
+                        <div>
+                          <p className="text-[11px] uppercase tracking-wider text-green-600 font-bold">
+                            Pembayaran Berhasil
+                          </p>
 
-                  {isLunas && (
-                    <div className="mt-4 h-10 w-full rounded-xl bg-green-50 flex items-center justify-center gap-1.5 text-green-600 text-sm font-black capitalize">
-                      <span>✓</span>
-                      <span>Ditagih oleh: {item.updated_by}</span>
+                          <p className="mt-1 text-sm font-semibold text-gray-900">
+                            {penagih}
+                          </p>
+                        </div>
+
+                        <div
+                          className={`rounded-full px-3 py-1.5 text-xs font-bold ${
+                            item.metode_pembayaran === "transfer"
+                              ? "bg-blue-100 text-blue-700"
+                              : "bg-amber-100 text-amber-700"
+                          }`}
+                        >
+                          {item.metode_pembayaran === "transfer"
+                            ? "💳 Transfer"
+                            : "💵 Cash"}
+                        </div>
+                      </div>
+
+                      {item.updated_at && (
+                        <div className="mt-3 border-t border-green-200 pt-3">
+                          <p className="text-xs text-gray-500">Dibayar pada</p>
+
+                          <p className="text-sm font-medium text-gray-700">
+                            {new Date(item.updated_at).toLocaleString("id-ID", {
+                              day: "numeric",
+                              month: "long",
+                              year: "numeric",
+                              hour: "2-digit",
+                              minute: "2-digit",
+                            })}
+                          </p>
+                        </div>
+                      )}
                     </div>
                   )}
                 </div>
@@ -562,9 +629,10 @@ export default function IPLPage() {
                             onClick={() =>
                               bayarIpl(
                                 item.id,
-                                item.rumah?.warga?.nama,
-                                item.rumah?.blok,
-                                item.rumah?.no_rumah,
+                                "cash",
+                                item.rumah?.warga?.nama || "",
+                                item.rumah?.blok || "",
+                                item.rumah?.no_rumah || "",
                               )
                             }
                             className="bg-yellow-700 text-white px-3 py-1 rounded-lg text-xs disabled:opacity-50"
@@ -689,6 +757,79 @@ export default function IPLPage() {
               {/* CONTENT */}
               <div className="max-h-[90vh] overflow-y-auto">
                 <DetailIpl data={selectedIpl} />
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* METODE PEMBAYARAN */}
+        {openMetodeModal && selectedIpl && (
+          <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm flex items-center justify-center p-4">
+            <div className="bg-white w-full max-w-sm rounded-3xl p-5 shadow-xl">
+              <h3 className="text-lg font-bold">Konfirmasi Pembayaran</h3>
+
+              <p className="text-sm text-gray-500 mt-1 uppercase font-semibold">
+                {selectedIpl?.rumah?.warga?.nama}
+              </p>
+
+              <p className="text-sm text-gray-500">
+                Blok {selectedIpl?.rumah?.blok}/{selectedIpl?.rumah?.no_rumah}
+              </p>
+
+              <div className="mt-4">
+                <p className="text-sm font-medium mb-3">Metode Pembayaran</p>
+
+                <div className="space-y-2">
+                  <button
+                    onClick={() => setSelectedMetode("cash")}
+                    className={`w-full h-12 rounded-2xl border text-left px-4 transition ${
+                      selectedMetode === "cash"
+                        ? "border-green-500 bg-green-50"
+                        : "border-gray-200"
+                    }`}
+                  >
+                    💵 Cash
+                  </button>
+
+                  <button
+                    onClick={() => setSelectedMetode("transfer")}
+                    className={`w-full h-12 rounded-2xl border text-left px-4 transition ${
+                      selectedMetode === "transfer"
+                        ? "border-green-500 bg-green-50"
+                        : "border-gray-200"
+                    }`}
+                  >
+                    💳 Transfer
+                  </button>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3 mt-6">
+                <button
+                  onClick={() => {
+                    setOpenMetodeModal(false);
+                    setSelectedIpl(null);
+                  }}
+                  className="h-11 rounded-2xl border border-gray-300 font-medium"
+                >
+                  Batal
+                </button>
+
+                <button
+                  disabled={actionLoading}
+                  onClick={() =>
+                    bayarIpl(
+                      selectedIpl.id,
+                      selectedMetode,
+                      selectedIpl.rumah?.warga?.nama,
+                      selectedIpl.rumah?.blok,
+                      selectedIpl.rumah?.no_rumah,
+                    )
+                  }
+                  className="h-11 rounded-2xl bg-green-600 text-white font-semibold disabled:opacity-50"
+                >
+                  Simpan
+                </button>
               </div>
             </div>
           </div>

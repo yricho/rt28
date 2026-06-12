@@ -184,12 +184,19 @@ export default function DashboardPage() {
 
       default:
         return (
-          <div className="px-6">
-            {/* STATS */}
-            <Stats />
-
+          <div className="px-6 space-y-6 md:px-0">
             {/* QUICK MENU */}
             <div className="grid md:grid-cols-3 gap-6">
+              <button
+                onClick={() => setActiveMenu("ipl")}
+                className="bg-white border border-gray-200 rounded-3xl p-6 text-left hover:shadow-lg transition"
+              >
+                <CreditCard className="mb-5" size={35} />
+
+                <h3 className="text-xl font-bold">IPL</h3>
+
+                <p className="text-gray-500 mt-2">Tagihan & pembayaran IPL</p>
+              </button>
               <button
                 onClick={() => setActiveMenu("warga")}
                 className="bg-white border border-gray-200 rounded-3xl p-6 text-left hover:shadow-lg transition"
@@ -211,18 +218,9 @@ export default function DashboardPage() {
 
                 <p className="text-gray-500 mt-2">Kelola rumah & penghuni</p>
               </button>
-
-              <button
-                onClick={() => setActiveMenu("ipl")}
-                className="bg-white border border-gray-200 rounded-3xl p-6 text-left hover:shadow-lg transition"
-              >
-                <CreditCard className="mb-5" size={35} />
-
-                <h3 className="text-xl font-bold">IPL</h3>
-
-                <p className="text-gray-500 mt-2">Tagihan & pembayaran IPL</p>
-              </button>
             </div>
+            {/* STATS */}
+            <Stats />
           </div>
         );
     }
