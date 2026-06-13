@@ -86,6 +86,7 @@ export default function IPLPage() {
     created_at,
     updated_at,
     updated_by,
+    metode_pembayaran,
     rumah:rumah_id!inner (
       id,
       no_rumah,
