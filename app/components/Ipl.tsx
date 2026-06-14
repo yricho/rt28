@@ -424,9 +424,9 @@ export default function IPLPage() {
         <div className="bg-white rounded-3xl border border-gray-200 p-4 mb-6 shadow-sm">
           <div className="mb-4">
             <h2 className="font-semibold text-gray-900">Filter Data</h2>
-            <p className="text-sm text-gray-500">
+            {/* <p className="text-sm text-gray-500">
               Cari tagihan berdasarkan nama, blok atau periode
-            </p>
+            </p> */}
           </div>
 
           <div className="grid grid-cols-1">
