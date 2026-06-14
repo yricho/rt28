@@ -65,6 +65,10 @@ export default function IPLPage() {
     getUser();
   }, []);
 
+  const ADMIN_EMAILS = ["yusuf.onaola@gmail.com"];
+
+  const isAdmin = ADMIN_EMAILS.includes(user?.email ?? "");
+
   // =========================
   // GET DATA IPL
   // =========================
@@ -124,17 +128,46 @@ export default function IPLPage() {
   // =========================
   // FILTER DATA
   // =========================
+  // const filteredIPL = useMemo(() => {
+  //   return ipl.filter((item) => {
+  //     const nama = item.rumah?.warga?.nama ?? "";
+  //     const matchSearch = nama.toLowerCase().includes(search.toLowerCase());
+  //     const matchBulan = filterBulan
+  //       ? item.bulan.toLowerCase() === filterBulan.toLowerCase()
+  //       : true;
+  //     const matchBlok = filterBlok ? item.rumah?.blok === filterBlok : true;
+  //     return matchSearch && matchBulan && matchBlok;
+  //   });
+  // }, [ipl, search, filterBulan, filterBlok]);
+
   const filteredIPL = useMemo(() => {
     return ipl.filter((item) => {
-      const nama = item.rumah?.warga?.nama ?? "";
-      const matchSearch = nama.toLowerCase().includes(search.toLowerCase());
+      const keyword = search.toLowerCase().trim();
+
+      const nama = item.rumah?.warga?.nama?.toLowerCase() || "";
+      const blok = item.rumah?.blok?.toLowerCase() || "";
+      const noRumah = item.rumah?.no_rumah?.toLowerCase() || "";
+
+      const alamatRumah = `${blok} ${noRumah}`;
+      const alamatRumah2 = `${blok}-${noRumah}`;
+      const alamatRumah3 = `${blok}${noRumah}`;
+
+      const matchSearch =
+        keyword === "" ||
+        nama.includes(keyword) ||
+        blok.includes(keyword) ||
+        noRumah.includes(keyword) ||
+        alamatRumah.includes(keyword) ||
+        alamatRumah2.includes(keyword) ||
+        alamatRumah3.includes(keyword);
+
       const matchBulan = filterBulan
         ? item.bulan.toLowerCase() === filterBulan.toLowerCase()
         : true;
-      const matchBlok = filterBlok ? item.rumah?.blok === filterBlok : true;
-      return matchSearch && matchBulan && matchBlok;
+
+      return matchSearch && matchBulan;
     });
-  }, [ipl, search, filterBulan, filterBlok]);
+  }, [ipl, search, filterBulan]);
 
   const totalPages = Math.ceil(filteredIPL.length / PAGE_SIZE);
 
@@ -378,6 +411,7 @@ export default function IPLPage() {
               Export Excel
             </button>
             <button
+              disabled={isAdmin ? false : true}
               onClick={() => setOpenModal(true)}
               className="h-12 rounded-xl bg-black text-white font-medium shadow-sm active:scale-95 transition"
             >
@@ -395,8 +429,15 @@ export default function IPLPage() {
             </p>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
+          <div className="grid grid-cols-1">
             <input
+              value={search}
+              onChange={(e) => setSearch(e.target.value.toUpperCase())}
+              placeholder="Cari nama, blok, atau no rumah..."
+              className="w-full border px-4 py-3 rounded-xl"
+            />
+
+            {/* <input
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder="Cari nama warga..."
@@ -420,8 +461,8 @@ export default function IPLPage() {
                   {b}
                 </option>
               ))}
-            </select>
-            <button
+            </select> */}
+            {/* <button
               onClick={() => {
                 setSearch("");
                 setFilterBulan("");
@@ -430,7 +471,7 @@ export default function IPLPage() {
               className="h-12 rounded-xl border border-gray-200 font-medium hover:bg-gray-50 transition"
             >
               Reset Filter
-            </button>
+            </button> */}
           </div>
         </div>
 
@@ -481,7 +522,7 @@ export default function IPLPage() {
                           Blok
                         </span>
 
-                        <span className="font-bold text-gray-900">
+                        <span className="font-bold text-gray-900 text-2xl">
                           {item.rumah?.blok}/{item.rumah?.no_rumah}
                         </span>
                       </div>
@@ -686,7 +727,7 @@ export default function IPLPage() {
 
         {/* MODAL GENERATE */}
         {openModal && (
-          <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
+          <div className="fixed inset-0 bg-black/40 flex items-end md:items-center justify-center z-50">
             <div className="bg-white w-full max-w-md p-6 rounded-2xl">
               <h2 className="text-xl font-bold mb-4">Generate IPL</h2>
 

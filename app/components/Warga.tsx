@@ -138,6 +138,7 @@ export default function Warga() {
 
           {/* BUTTON OPEN MODAL */}
           <button
+            disabled
             onClick={() => setOpenModal(true)}
             className="bg-black text-white px-5 py-3 rounded-xl hover:opacity-90"
           >

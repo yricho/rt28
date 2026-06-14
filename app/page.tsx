@@ -103,12 +103,12 @@ export default function Home() {
                   Masuk Dashboard
                 </a>
 
-                <a
+                {/* <a
                   href="/account"
                   className="border border-zinc-300 hover:bg-zinc-100 px-6 py-4 rounded-2xl font-medium text-center transition"
                 >
                   Cek IPL Warga
-                </a>
+                </a> */}
               </div>
 
               {/* STATS */}

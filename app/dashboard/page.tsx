@@ -9,11 +9,13 @@ import {
   User,
   Users,
 } from "lucide-react";
-import { useState } from "react";
+import { useRouter } from "next/navigation";
+import { useEffect, useState } from "react";
 import Ipl from "../components/Ipl";
 import Rumah from "../components/Rumah";
 import Stats from "../components/Stats";
 import Warga from "../components/Warga";
+import { supabase } from "../lib/supabase";
 
 /* ========================= */
 /* COMPONENT WARGA */
@@ -169,7 +171,47 @@ function IplSection() {
 /* ========================= */
 
 export default function DashboardPage() {
+  const router = useRouter();
+
   const [activeMenu, setActiveMenu] = useState("dashboard");
+  const [user, setUser] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    checkSession();
+
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event, session) => {
+      setUser(session?.user ?? null);
+
+      if (!session) {
+        router.replace("/login");
+      }
+    });
+
+    return () => subscription.unsubscribe();
+  }, []);
+
+  async function checkSession() {
+    try {
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+
+      if (!session) {
+        router.replace("/login");
+        return;
+      }
+
+      setUser(session.user);
+    } catch (error) {
+      console.error("Error checking session:", error);
+      router.replace("/login");
+    } finally {
+      setLoading(false);
+    }
+  }
 
   function renderContent() {
     switch (activeMenu) {
@@ -185,26 +227,22 @@ export default function DashboardPage() {
       default:
         return (
           <div className="px-6 space-y-6 md:px-0">
-            {/* QUICK MENU */}
             <div className="grid md:grid-cols-3 gap-6">
               <button
                 onClick={() => setActiveMenu("ipl")}
                 className="bg-white border border-gray-200 rounded-3xl p-6 text-left hover:shadow-lg transition"
               >
                 <CreditCard className="mb-5" size={35} />
-
                 <h3 className="text-xl font-bold">IPL</h3>
-
                 <p className="text-gray-500 mt-2">Tagihan & pembayaran IPL</p>
               </button>
+
               <button
                 onClick={() => setActiveMenu("warga")}
                 className="bg-white border border-gray-200 rounded-3xl p-6 text-left hover:shadow-lg transition"
               >
                 <Users className="mb-5" size={35} />
-
                 <h3 className="text-xl font-bold">Data Warga</h3>
-
                 <p className="text-gray-500 mt-2">Kelola seluruh warga RT</p>
               </button>
 
@@ -213,17 +251,27 @@ export default function DashboardPage() {
                 className="bg-white border border-gray-200 rounded-3xl p-6 text-left hover:shadow-lg transition"
               >
                 <Building2 className="mb-5" size={35} />
-
                 <h3 className="text-xl font-bold">Data Rumah</h3>
-
                 <p className="text-gray-500 mt-2">Kelola rumah & penghuni</p>
               </button>
             </div>
-            {/* STATS */}
+
             <Stats />
           </div>
         );
     }
+  }
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        Loading...
+      </div>
+    );
+  }
+
+  if (!user) {
+    return null;
   }
 
   return (
@@ -320,8 +368,12 @@ export default function DashboardPage() {
             <p className="text-sm text-gray-500">Sistem Administrasi Warga</p>
           </div>
 
-          <div className="w-11 h-11 rounded-full bg-black text-white flex items-center justify-center font-bold">
-            <User size={20} />
+          <div className="w-10 h-10 rounded-full bg-black text-white flex items-center justify-center text-sm font-semibold">
+            {user?.email ? (
+              user.email.charAt(0).toUpperCase()
+            ) : (
+              <User size={18} />
+            )}
           </div>
         </div>
 
