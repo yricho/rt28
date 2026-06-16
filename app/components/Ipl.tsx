@@ -311,11 +311,11 @@ export default function IPLPage() {
       .toLowerCase()
       .replace(/\b\w/g, (l) => l.toUpperCase());
 
-    const confirmed = window.confirm(
-      `Konfirmasi pembayaran IPL untuk ${wargaDisplayName} (${blok}/${noRumah}) dengan metode ${metode}?`,
-    );
+    // const confirmed = window.confirm(
+    //   `Konfirmasi pembayaran IPL untuk ${wargaDisplayName} (${blok}/${noRumah}) dengan metode ${metode}?`,
+    // );
 
-    if (!confirmed) return;
+    // if (!confirmed) return;
 
     setActionLoading(true);
 
@@ -586,8 +586,13 @@ export default function IPLPage() {
                             Pembayaran Berhasil
                           </p>
 
-                          <p className="mt-1 text-sm font-semibold text-gray-900">
-                            {penagih}
+                          <p className="mt-1">
+                            <span className="block text-xs text-gray-400">
+                              Diterima Oleh
+                            </span>
+                            <span className="text-sm font-semibold text-gray-600 uppercase">
+                              {penagih}
+                            </span>
                           </p>
                         </div>
 
@@ -606,7 +611,7 @@ export default function IPLPage() {
 
                       {item.updated_at && (
                         <div className="mt-3 border-t border-green-200 pt-3">
-                          <p className="text-xs text-gray-500">Dibayar pada</p>
+                          <p className="text-xs text-gray-400">Dibayar pada</p>
 
                           <p className="text-sm font-medium text-gray-700">
                             {new Date(item.updated_at).toLocaleString("id-ID", {
@@ -631,60 +636,112 @@ export default function IPLPage() {
         <div className="hidden md:block bg-white border rounded-2xl overflow-hidden">
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
-              <thead className="bg-gray-50 text-xs uppercase text-gray-600">
+              <thead className="bg-gray-50 text-xs uppercase text-gray-500">
                 <tr>
-                  <th className="px-4 py-3 text-left">No.Rumah / Nama</th>
-                  <th className="px-4 py-3 text-left">Periode</th>
-                  <th className="px-4 py-3 text-left">Nominal</th>
-                  <th className="px-4 py-3 text-center">Aksi</th>
+                  <th className="px-5 py-4 text-left">Rumah / Warga</th>
+                  <th className="px-5 py-4 text-left">Periode</th>
+                  <th className="px-5 py-4 text-left">Nominal</th>
+                  <th className="px-5 py-4 text-center">Status</th>
                 </tr>
               </thead>
               <tbody>
                 {paginatedData.length === 0 && (
                   <tr>
-                    <td colSpan={4} className="text-center py-10 text-gray-500">
+                    <td colSpan={4} className="py-12 text-center text-gray-500">
                       Tidak ada data IPL
                     </td>
                   </tr>
                 )}
+
                 {paginatedData.map((item) => {
-                  const isLunas = item.status === "lunas";
+                  const isLunas = item.status?.toLowerCase() === "lunas";
+
+                  const penagih = item.updated_by
+                    ? item.updated_by
+                        .split("@")[0]
+                        .replace(/\./g, " ")
+                        .replace(/\b\w/g, (c) => c.toUpperCase())
+                    : "-";
+
                   return (
-                    <tr key={item.id} className="border-t">
-                      <td className="px-4 py-3 font-medium capitalize flex items-center gap-2">
-                        <span className="font-black">
-                          {item.rumah?.blok}/{item.rumah?.no_rumah}
-                        </span>
-                        <span>•</span>
-                        <span>{item.rumah?.warga?.nama}</span>
+                    <tr
+                      key={item.id}
+                      className={`border-t hover:bg-gray-50 transition ${
+                        isLunas
+                          ? "border-l-4 border-l-green-500"
+                          : "border-l-4 border-l-yellow-500"
+                      }`}
+                    >
+                      {/* RUMAH / WARGA */}
+                      <td className="px-5 py-4">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setSelectedIpl(item);
+                            setOpenModalDetail(true);
+                          }}
+                          className="group text-left"
+                        >
+                          <div className="flex items-center gap-2">
+                            <span className="text-xs uppercase tracking-wider text-gray-400 font-semibold">
+                              Blok
+                            </span>
+
+                            <span className="font-black text-lg text-gray-900 transition group-hover:text-blue-600">
+                              {item.rumah?.blok}/{item.rumah?.no_rumah}
+                            </span>
+                          </div>
+
+                          <p className="mt-1 font-medium uppercase text-gray-700 transition group-hover:text-blue-600">
+                            {item.rumah?.warga?.nama ?? "-"}
+                          </p>
+
+                          <span className="mt-1 inline-block text-xs text-blue-600 opacity-0 transition group-hover:opacity-100">
+                            Lihat Detail →
+                          </span>
+                        </button>
                       </td>
-                      <td className="px-4 py-3">
+
+                      {/* PERIODE */}
+                      <td className="px-5 py-4 font-medium text-gray-700">
                         {item.bulan} {item.tahun}
                       </td>
-                      <td className="px-4 py-3 font-semibold">
+
+                      {/* NOMINAL */}
+                      <td className="px-5 py-4 font-black text-gray-900">
                         Rp {Number(item.nominal).toLocaleString("id-ID")}
                       </td>
-                      <td className="px-4 py-3 text-center">
-                        {!isLunas ? (
+
+                      {/* STATUS + AKSI */}
+                      <td className="px-5 py-4 text-center">
+                        {isLunas ? (
+                          <div className="inline-flex flex-col items-center gap-2">
+                            <span className="rounded-full bg-green-100 px-4 py-2 text-xs font-bold text-green-700">
+                              ✓ LUNAS
+                            </span>
+
+                            <div className="text-xs text-gray-500">
+                              <div>{penagih}</div>
+
+                              <div className="mt-1">
+                                {item.metode_pembayaran === "transfer"
+                                  ? "💳 Transfer"
+                                  : "💵 Cash"}
+                              </div>
+                            </div>
+                          </div>
+                        ) : (
                           <button
                             disabled={actionLoading}
-                            onClick={() =>
-                              bayarIpl(
-                                item.id,
-                                "cash",
-                                item.rumah?.warga?.nama || "",
-                                item.rumah?.blok || "",
-                                item.rumah?.no_rumah || "",
-                              )
-                            }
-                            className="bg-yellow-700 text-white px-3 py-1 rounded-lg text-xs disabled:opacity-50"
+                            onClick={() => {
+                              setSelectedIpl(item);
+                              setSelectedMetode("cash");
+                              setOpenMetodeModal(true);
+                            }}
+                            className="rounded-xl bg-yellow-100 px-4 py-2 text-xs font-bold text-yellow-700 hover:bg-yellow-200 disabled:opacity-50"
                           >
-                            Bayar
+                            Bayar IPL
                           </button>
-                        ) : (
-                          <span className="px-3 py-1 rounded-full text-xs font-medium bg-green-100 text-green-700">
-                            LUNAS
-                          </span>
                         )}
                       </td>
                     </tr>

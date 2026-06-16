@@ -16,6 +16,7 @@ import Rumah from "../components/Rumah";
 import Stats from "../components/Stats";
 import Warga from "../components/Warga";
 import { supabase } from "../lib/supabase";
+import Link from "next/link";
 
 /* ========================= */
 /* COMPONENT WARGA */
@@ -361,11 +362,13 @@ export default function DashboardPage() {
         {/* TOPBAR */}
         <div className="h-20 bg-white border-b border-gray-200 flex items-center justify-between px-6">
           <div>
-            <h2 className="text-2xl font-bold text-gray-900">
-              Dashboard RT 28
-            </h2>
+            <Link href="/">
+              <h2 className="text-2xl font-bold text-gray-900">
+                Dashboard RT 28
+              </h2>
 
-            <p className="text-sm text-gray-500">Sistem Administrasi Warga</p>
+              <p className="text-sm text-gray-500">Sistem Administrasi Warga</p>
+            </Link>
           </div>
 
           <div className="w-10 h-10 rounded-full bg-black text-white flex items-center justify-center text-sm font-semibold">
