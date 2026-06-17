@@ -421,58 +421,21 @@ export default function IPLPage() {
         </div>
 
         {/* FILTER */}
-        <div className="bg-white rounded-3xl border border-gray-200 p-4 mb-6 shadow-sm">
-          <div className="mb-4">
-            <h2 className="font-semibold text-gray-900">Filter Data</h2>
-            {/* <p className="text-sm text-gray-500">
-              Cari tagihan berdasarkan nama, blok atau periode
+        <div className="sticky top-4 z-50 mb-6 rounded-3xl border border-gray-200 bg-white p-6 shadow-sm">
+          <div className="mb-5">
+            <h2 className="text-gray-500">Cari berdasarkan nama warga, blok atau nomor rumah</h2>
+
+            {/* <p className="mt-1 text-base text-gray-500">
+              Cari berdasarkan nama warga, blok atau nomor rumah
             </p> */}
           </div>
 
-          <div className="grid grid-cols-1">
-            <input
-              value={search}
-              onChange={(e) => setSearch(e.target.value.toUpperCase())}
-              placeholder="Cari nama, blok, atau no rumah..."
-              className="w-full border px-4 py-3 rounded-xl"
-            />
-
-            {/* <input
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              placeholder="Cari nama warga..."
-              className="w-full h-12 rounded-xl border border-gray-200 px-4 text-sm outline-none focus:ring-2 focus:ring-black focus:border-transparent"
-            />
-            <input
-              type="text"
-              value={filterBlok}
-              onChange={(e) => setFilterBlok(e.target.value.toUpperCase())}
-              placeholder="Blok"
-              className="w-full h-12 rounded-xl border border-gray-200 px-4 text-sm outline-none focus:ring-2 focus:ring-black focus:border-transparent"
-            />
-            <select
-              value={filterBulan}
-              onChange={(e) => setFilterBulan(e.target.value)}
-              className="w-full h-12 rounded-xl border border-gray-200 px-4 text-sm outline-none focus:ring-2 focus:ring-black focus:border-transparent"
-            >
-              <option value="">Semua Bulan</option>
-              {BULAN_OPTIONS.map((b) => (
-                <option key={b} value={b}>
-                  {b}
-                </option>
-              ))}
-            </select> */}
-            {/* <button
-              onClick={() => {
-                setSearch("");
-                setFilterBulan("");
-                setFilterBlok("");
-              }}
-              className="h-12 rounded-xl border border-gray-200 font-medium hover:bg-gray-50 transition"
-            >
-              Reset Filter
-            </button> */}
-          </div>
+          <input
+            value={search}
+            onChange={(e) => setSearch(e.target.value.toUpperCase())}
+            placeholder="Contoh: A3A25"
+            className="w-full h-20 rounded-3xl border-2 border-gray-200 px-6 text-2xl font-black outline-none focus:border-black"
+          />
         </div>
 
         {/* MOBILE CARD */}
@@ -496,7 +459,7 @@ export default function IPLPage() {
             return (
               <div
                 key={item.id}
-                className={`relative overflow-hidden rounded-3xl border bg-white p-4 shadow-sm transition-all ${
+                className={`relative overflow-hidden rounded-3xl border ${isLunas ? "bg-green-100" : "bg-yellow-300"} p-4 shadow-sm transition-all ${
                   isLunas ? "border-green-100" : "border-yellow-100"
                 }`}
               >

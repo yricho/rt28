@@ -5,10 +5,12 @@ import {
   Building2,
   CreditCard,
   Home,
+  LoaderCircle,
   Settings,
   User,
   Users,
 } from "lucide-react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import Ipl from "../components/Ipl";
@@ -16,7 +18,6 @@ import Rumah from "../components/Rumah";
 import Stats from "../components/Stats";
 import Warga from "../components/Warga";
 import { supabase } from "../lib/supabase";
-import Link from "next/link";
 
 /* ========================= */
 /* COMPONENT WARGA */
@@ -266,7 +267,7 @@ export default function DashboardPage() {
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
-        Loading...
+        <LoaderCircle className="h-10 w-10 animate-spin text-gray-500" />
       </div>
     );
   }

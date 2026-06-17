@@ -141,16 +141,20 @@ export default function DetailIpl({ data }: { data: any }) {
           {iplData?.map((item) => {
             const isLunas = item.status?.toLowerCase() === "lunas";
 
-            const adminName = (item.updated_by || "Admin")
-              .split("@")[0]
-              .replace(/\./g, " ")
-              .replace(/\b\w/g, (c: any) => c.toUpperCase());
+            const penagih = item.updated_by
+              ? item.updated_by
+                  .split("@")[0]
+                  .replace(/\./g, " ")
+                  .replace(/\b\w/g, (c: any) => c.toUpperCase())
+              : "-";
 
             return (
               <div
                 key={item.id}
                 className={`overflow-hidden rounded-3xl border bg-white shadow-sm ${
-                  isLunas ? "border-green-100" : "border-yellow-100"
+                  isLunas
+                    ? "border-green-100"
+                    : "border-yellow-100 bg-yellow-300"
                 }`}
               >
                 {/* TOP ACCENT */}
@@ -195,15 +199,20 @@ export default function DetailIpl({ data }: { data: any }) {
 
                   {/* INFO PEMBAYARAN */}
                   {isLunas && (
-                    <div className="mt-5 rounded-2xl bg-green-50 border border-green-100 p-3">
-                      <div className="flex items-center justify-between">
+                    <div className="mt-4 rounded-2xl border border-green-100 bg-green-50 p-3">
+                      <div className="flex items-center justify-between gap-3">
                         <div>
                           <p className="text-[11px] uppercase tracking-wider text-green-600 font-bold">
                             Pembayaran Berhasil
                           </p>
 
-                          <p className="text-sm font-semibold text-gray-900 mt-1">
-                            {adminName}
+                          <p className="mt-1">
+                            <span className="block text-xs text-gray-400">
+                              Diterima Oleh
+                            </span>
+                            <span className="text-sm font-semibold text-gray-600 uppercase">
+                              {penagih}
+                            </span>
                           </p>
                         </div>
 
@@ -222,7 +231,7 @@ export default function DetailIpl({ data }: { data: any }) {
 
                       {item.updated_at && (
                         <div className="mt-3 border-t border-green-200 pt-3">
-                          <p className="text-xs text-gray-500">Dibayar pada</p>
+                          <p className="text-xs text-gray-400">Dibayar pada</p>
 
                           <p className="text-sm font-medium text-gray-700">
                             {new Date(item.updated_at).toLocaleString("id-ID", {
