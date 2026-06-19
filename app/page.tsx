@@ -1,10 +1,14 @@
 "use client";
 
-import { useEffect, useState } from "react";
 import { supabase } from "@/app/lib/supabase";
+import { LoaderCircle } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { useEffect, useState } from "react";
 
 export default function Home() {
+  const router = useRouter();
   const [loading, setLoading] = useState(true);
+  const [checkingAuth, setCheckingAuth] = useState(true);
 
   const [stats, setStats] = useState({
     totalRumah: 0,
@@ -64,6 +68,43 @@ export default function Home() {
     } finally {
       setLoading(false);
     }
+  }
+
+  useEffect(() => {
+    async function checkSession() {
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+
+      console.log(session);
+
+      if (session) {
+        router.replace("/dashboard");
+        return;
+      }
+
+      setCheckingAuth(false);
+    }
+
+    checkSession();
+
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (session) {
+        router.replace("/dashboard");
+      }
+    });
+
+    return () => subscription.unsubscribe();
+  }, [router]);
+
+  if (checkingAuth) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <LoaderCircle className="h-14 w-14 animate-spin text-gray-400" />
+      </div>
+    );
   }
 
   return (

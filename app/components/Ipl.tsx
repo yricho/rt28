@@ -421,9 +421,9 @@ export default function IPLPage() {
         </div>
 
         {/* FILTER */}
-        <div className="sticky top-4 z-50 mb-6 rounded-3xl border border-gray-200 bg-white p-6 shadow-sm">
-          <div className="mb-5">
-            <h2 className="text-gray-500">Cari berdasarkan nama warga, blok atau nomor rumah</h2>
+        <div className="sticky top-0 z-50 mb-6 rounded-3xl border border-gray-200 bg-white p-4 shadow-sm">
+          <div className="mb-2">
+            <h2 className="text-gray-400 uppercase font-black">Nama, blok atau nomor rumah</h2>
 
             {/* <p className="mt-1 text-base text-gray-500">
               Cari berdasarkan nama warga, blok atau nomor rumah
