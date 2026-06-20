@@ -1,6 +1,7 @@
 "use client";
 
 import { X } from "lucide-react";
+import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import * as XLSX from "xlsx";
@@ -392,16 +393,24 @@ export default function IPLPage() {
   // UI
   // =========================
   return (
-    <div className="min-h-screen bg-gray-50 p-4 md:p-6">
+    <div className="min-h-screen bg-gray-50 p-4">
       <div className="max-w-6xl mx-auto">
+        <div className="flex items-center gap-2 text-sm text-gray-500 mb-4">
+          <Link href="/" className="hover:text-black transition-colors">
+            Dashboard
+          </Link>
+
+          <span>/</span>
+          <span className="font-medium text-black">Data IPL</span>
+        </div>
         {/* HEADER */}
         <div className="mb-6">
-          <div className="mb-4">
+          {/* <div className="mb-4">
             <h1 className="text-2xl font-bold tracking-tight">Data IPL</h1>
             <p className="text-sm text-gray-500 mt-1">
               Tagihan iuran lingkungan warga
             </p>
-          </div>
+          </div> */}
 
           <div className="grid grid-cols-2 gap-3">
             <button
@@ -423,7 +432,9 @@ export default function IPLPage() {
         {/* FILTER */}
         <div className="sticky top-0 z-50 mb-6 rounded-3xl border border-gray-200 bg-white p-4 shadow-sm">
           <div className="mb-2">
-            <h2 className="text-gray-400 uppercase font-black">Nama, blok atau nomor rumah</h2>
+            <h2 className="text-gray-400 uppercase font-black">
+              Nama, blok atau nomor rumah
+            </h2>
 
             {/* <p className="mt-1 text-base text-gray-500">
               Cari berdasarkan nama warga, blok atau nomor rumah
@@ -433,8 +444,8 @@ export default function IPLPage() {
           <input
             value={search}
             onChange={(e) => setSearch(e.target.value.toUpperCase())}
-            placeholder="Contoh: A3A25"
-            className="w-full h-20 rounded-3xl border-2 border-gray-200 px-6 text-2xl font-black outline-none focus:border-black"
+            placeholder="A3A25"
+            className="w-full h-14 rounded-3xl border-2 border-gray-200 px-4 text-2xl font-black outline-none focus:border-black"
           />
         </div>
 
@@ -490,7 +501,7 @@ export default function IPLPage() {
                         </span>
                       </div>
 
-                      <p className="mt-1 text-sm font-medium text-gray-700 uppercase">
+                      <p className="mt-1 text-sm font-bold text-gray-700 uppercase">
                         {item.rumah?.warga?.nama ?? "-"}
                       </p>
                     </div>
@@ -830,11 +841,11 @@ export default function IPLPage() {
             <div className="bg-white w-full max-w-sm rounded-3xl p-5 shadow-xl">
               <h3 className="text-lg font-bold">Konfirmasi Pembayaran</h3>
 
-              <p className="text-sm text-gray-500 mt-1 uppercase font-semibold">
+              <p className="text-lg text-gray-500 mt-1 uppercase font-semibold">
                 {selectedIpl?.rumah?.warga?.nama}
               </p>
 
-              <p className="text-sm text-gray-500">
+              <p className="text-2xl text-gray-700 font-black">
                 Blok {selectedIpl?.rumah?.blok}/{selectedIpl?.rumah?.no_rumah}
               </p>
 

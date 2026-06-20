@@ -228,11 +228,11 @@ export default function DashboardPage() {
 
       default:
         return (
-          <div className="px-6 space-y-6 md:px-0">
+          <div className="px-6 py-6 space-y-6 md:px-0">
             <div className="grid md:grid-cols-3 gap-6">
               <button
                 onClick={() => setActiveMenu("ipl")}
-                className="bg-white border border-gray-200 rounded-3xl p-6 text-left hover:shadow-lg transition"
+                className="bg-green-400 border border-gray-200 rounded-3xl p-6 text-left hover:shadow-lg transition"
               >
                 <CreditCard className="mb-5" size={35} />
                 <h3 className="text-xl font-bold">IPL</h3>
@@ -382,7 +382,7 @@ export default function DashboardPage() {
         </div>
 
         {/* CONTENT SECTION */}
-        <div className="py-6 md:p-8">{renderContent()}</div>
+        <div className="md:p-8">{renderContent()}</div>
       </main>
     </div>
   );

@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { supabase } from "../lib/supabase";
+import Link from "next/link";
 
 const PAGE_SIZE = 10;
 
@@ -196,12 +197,18 @@ export default function Rumah() {
   // =====================
   return (
     <div className="min-h-screen bg-gray-50">
-      <div className="max-w-6xl mx-auto p-4 md:p-10">
+      <div className="max-w-6xl mx-auto p-4">
+        <div className="flex items-center gap-2 text-sm text-gray-500 mb-4">
+          <Link href="/" className="hover:text-black transition-colors">
+            Dashboard
+          </Link>
+          <span>/</span>
+          <span className="font-medium text-black">Data Rumah</span>
+        </div>
         {/* HEADER */}
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-6">
           <div>
             <h1 className="text-2xl md:text-4xl font-bold">Data Rumah</h1>
-
             <p className="text-gray-500">
               Kelola rumah berdasarkan blok & warga
             </p>

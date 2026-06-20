@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { supabase } from "@/app/lib/supabase";
+import { LoaderCircle } from "lucide-react";
 
 export default function DetailIpl({ data }: { data: any }) {
   const [rumahData, setRumahData] = useState<any>(null);
@@ -52,7 +53,11 @@ export default function DetailIpl({ data }: { data: any }) {
   }
 
   if (loading) {
-    return <div>Loading...</div>;
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <LoaderCircle className="h-10 w-10 animate-spin text-gray-500" />
+      </div>
+    );
   }
 
   const total = iplData?.length || 0;

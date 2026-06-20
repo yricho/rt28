@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { supabase } from "../lib/supabase";
+import Link from "next/link";
 
 const PAGE_SIZE = 10;
 
@@ -127,8 +128,15 @@ export default function Warga() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <div className="max-w-6xl mx-auto p-6 md:p-10">
+      <div className="max-w-6xl mx-auto p-4">
         {/* HEADER */}
+        <div className="flex items-center gap-2 text-sm text-gray-500 mb-4">
+          <Link href="/" className="hover:text-black transition-colors">
+            Dashboard
+          </Link>
+          <span>/</span>
+          <span className="font-medium text-black">Data Warga</span>
+        </div>
         <div className="flex items-center justify-between mb-8">
           <div>
             <h1 className="text-3xl font-bold text-gray-900">Data Warga</h1>
