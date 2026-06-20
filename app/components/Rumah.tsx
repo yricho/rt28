@@ -1,8 +1,9 @@
 "use client";
 
+import { LoaderCircle } from "lucide-react";
+import Link from "next/link";
 import { useEffect, useState } from "react";
 import { supabase } from "../lib/supabase";
-import Link from "next/link";
 
 const PAGE_SIZE = 10;
 
@@ -236,7 +237,7 @@ export default function Rumah() {
         {/* LOADING */}
         {loading && (
           <div className="text-center py-10 text-gray-500">
-            Loading data rumah...
+            <LoaderCircle className="h-10 w-10 animate-spin text-gray-500" />
           </div>
         )}
 

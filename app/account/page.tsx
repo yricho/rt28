@@ -1,8 +1,9 @@
 "use client";
 
-import { useEffect, useState } from "react";
 import { supabase } from "@/app/lib/supabase";
+import { LoaderCircle } from "lucide-react";
 import { useRouter } from "next/navigation";
+import { useEffect, useState } from "react";
 
 export default function AccountPage() {
   const router = useRouter();
@@ -97,8 +98,8 @@ export default function AccountPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center text-gray-500">
-        Loading...
+      <div className="min-h-screen flex items-center justify-center">
+        <LoaderCircle className="h-10 w-10 animate-spin text-gray-500" />
       </div>
     );
   }

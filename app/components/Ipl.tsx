@@ -1,6 +1,6 @@
 "use client";
 
-import { X } from "lucide-react";
+import { LoaderCircle, X } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
@@ -366,8 +366,8 @@ export default function IPLPage() {
   // =========================
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center text-gray-500">
-        Loading IPL...
+      <div className="min-h-screen flex items-center justify-center">
+        <LoaderCircle className="h-10 w-10 animate-spin text-gray-500" />
       </div>
     );
   }
