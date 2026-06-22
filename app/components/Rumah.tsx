@@ -4,16 +4,22 @@ import { LoaderCircle } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { supabase } from "../lib/supabase";
+import { toast } from "sonner";
 
 const PAGE_SIZE = 10;
 
 export default function Rumah() {
+  const [user, setUser] = useState<any>(null);
+
   const [rumah, setRumah] = useState<any[]>([]);
   const [warga, setWarga] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
   const [openModal, setOpenModal] = useState(false);
   const [editMode, setEditMode] = useState(false);
+
+  const [deleteId, setDeleteId] = useState("");
+  const [deleteName, setDeleteName] = useState("");
 
   const [search, setSearch] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
@@ -28,6 +34,7 @@ export default function Rumah() {
     blok: "",
     no_rumah: "",
     alamat: "",
+    status: "active",
   });
 
   // =====================
@@ -74,6 +81,7 @@ export default function Rumah() {
         warga_id,
         blok,
         no_rumah,
+        status,
         alamat,
         created_at,
         warga (
@@ -136,10 +144,11 @@ export default function Rumah() {
     }
 
     const payload = {
-      warga_id: form.warga_id || null,
+      warga_id: form.warga_id,
       blok: form.blok,
       no_rumah: form.no_rumah,
       alamat: form.alamat,
+      status: form.status,
     };
 
     if (editMode && form.id) {
@@ -169,6 +178,7 @@ export default function Rumah() {
       blok: "",
       no_rumah: "",
       alamat: "",
+      status: "active",
     });
 
     setEditMode(false);
@@ -185,13 +195,54 @@ export default function Rumah() {
       blok: item.blok || "",
       no_rumah: item.no_rumah || "",
       alamat: item.alamat || "",
+      status: item.status || "active",
     });
 
     setEditMode(true);
     setOpenModal(true);
   }
 
+  async function handleDelete() {
+    try {
+      setLoading(true);
+
+      const { error } = await supabase
+        .from("rumah")
+        .delete()
+        .eq("id", deleteId);
+
+      if (error) throw error;
+
+      toast.success("Rumah berhasil dihapus");
+
+      setDeleteId("");
+      setDeleteName("");
+
+      await getDataRumah();
+    } catch (err: any) {
+      toast.error(err.message);
+    } finally {
+      setLoading(false);
+    }
+  }
+
   const totalPages = Math.ceil(totalData / PAGE_SIZE);
+
+  useEffect(() => {
+    const getUser = async () => {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+
+      setUser(user);
+    };
+
+    getUser();
+  }, []);
+
+  const ADMIN_EMAILS = ["yusuf.onaola@gmail.com"];
+
+  const isAdmin = ADMIN_EMAILS.includes(user?.email ?? "");
 
   // =====================
   // UI
@@ -216,9 +267,11 @@ export default function Rumah() {
           </div>
 
           <button
-            disabled
-            onClick={() => setOpenModal(true)}
-            className="bg-black text-white px-5 py-3 rounded-2xl"
+            onClick={() => {
+              resetForm();
+              setEditMode(false);
+              setOpenModal(true);
+            }}
           >
             + Tambah Rumah
           </button>
@@ -259,7 +312,9 @@ export default function Rumah() {
                     <tr>
                       <th className="px-4 py-3">Blok / No</th>
                       <th className="px-4 py-3">Nama</th>
-                      <th className="px-4 py-3 text-center">No HP</th>
+                      {/* <th className="px-4 py-3 text-center">No HP</th> */}
+                      <th className="px-4 py-3 text-center">Status</th>
+                      <th className="px-4 py-3 text-center">Aksi</th>
                     </tr>
                   </thead>
 
@@ -281,8 +336,45 @@ export default function Rumah() {
                         </td>
 
                         {/* NO HP */}
-                        <td className="px-4 py-3 text-center text-gray-600">
+                        {/* <td className="px-4 py-3 text-center text-gray-600">
                           {item.warga?.no_hp ?? "-"}
+                        </td> */}
+
+                        <td className="px-4 py-3 text-center">
+                          <span
+                            className={`px-2 py-1 rounded-full text-xs font-medium ${
+                              item.status === "active"
+                                ? "bg-green-100 text-green-700"
+                                : "bg-red-100 text-red-700"
+                            }`}
+                          >
+                            {item.status === "active" ? "Active" : "Non Active"}
+                          </span>
+                        </td>
+
+                        <td className="px-4 py-3 text-center">
+                          <div className="flex justify-center gap-2">
+                            <button
+                              onClick={() => handleEdit(item)}
+                              className="px-3 py-1 rounded-lg bg-yellow-100 text-yellow-700 hover:bg-yellow-200"
+                            >
+                              Edit
+                            </button>
+
+                            {isAdmin && (
+                              <button
+                                onClick={() => {
+                                  setDeleteId(item.id);
+                                  setDeleteName(
+                                    `${item.blok}/${item.no_rumah}`,
+                                  );
+                                }}
+                                className="px-3 py-1 rounded-lg bg-red-100 text-red-700 hover:bg-red-200"
+                              >
+                                Hapus
+                              </button>
+                            )}
+                          </div>
                         </td>
                       </tr>
                     ))}
@@ -332,6 +424,10 @@ export default function Rumah() {
               {editMode ? "Edit Rumah" : "Tambah Rumah"}
             </h2>
 
+            <p className="text-sm text-gray-500 mb-4">
+              {editMode ? "Perbarui data rumah" : "Tambahkan data rumah baru"}
+            </p>
+
             <form onSubmit={handleSubmit} className="space-y-3">
               {/* WARGA */}
               <select
@@ -366,6 +462,26 @@ export default function Rumah() {
                 className="w-full border rounded-xl px-3 py-2"
               />
 
+              {/* STATUS RUMAH */}
+              <div className="mb-4">
+                <label className="block text-sm font-medium mb-2">
+                  Status Rumah
+                </label>
+                <select
+                  value={form.status}
+                  onChange={(e) =>
+                    setForm({
+                      ...form,
+                      status: e.target.value,
+                    })
+                  }
+                  className="w-full border rounded-xl px-4 py-3"
+                >
+                  <option value="active">Active</option>
+                  <option value="nonactive">Non Active</option>
+                </select>
+              </div>
+
               {/* BUTTON */}
               <div className="flex gap-2 pt-2">
                 <button
@@ -378,12 +494,52 @@ export default function Rumah() {
 
                 <button
                   type="submit"
-                  className="flex-1 bg-black text-white rounded-xl py-2"
+                  className={`flex-1 rounded-xl py-2 text-white ${
+                    editMode ? "bg-amber-600" : "bg-black"
+                  }`}
                 >
-                  {editMode ? "Update" : "Simpan"}
+                  {editMode ? "Update Data" : "Simpan Data"}
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {deleteId && (
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
+          <div className="bg-white rounded-3xl w-full max-w-md p-6">
+            <h2 className="text-xl font-bold">Hapus Rumah</h2>
+
+            <p className="text-gray-500 mt-2">Yakin ingin menghapus rumah:</p>
+
+            <div className="mt-3 p-3 rounded-xl bg-gray-100 font-semibold">
+              {deleteName}
+            </div>
+
+            <p className="text-sm text-red-600 mt-3">
+              Data yang dihapus tidak dapat dikembalikan.
+            </p>
+
+            <div className="flex gap-3 mt-6">
+              <button
+                onClick={() => {
+                  setDeleteId("");
+                  setDeleteName("");
+                }}
+                className="flex-1 border rounded-xl py-3"
+              >
+                Batal
+              </button>
+
+              <button
+                disabled={loading}
+                onClick={handleDelete}
+                className="flex-1 bg-red-600 text-white rounded-xl py-3 disabled:opacity-50"
+              >
+                {loading ? "Menghapus..." : "Hapus"}
+              </button>
+            </div>
           </div>
         </div>
       )}

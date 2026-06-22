@@ -10,6 +10,9 @@ export default function Warga() {
   const [warga, setWarga] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
 
+  const [editMode, setEditMode] = useState(false);
+  const [editId, setEditId] = useState("");
+
   // MODAL
   const [openModal, setOpenModal] = useState(false);
 
@@ -42,6 +45,28 @@ export default function Warga() {
     setLoading(false);
   }
 
+  function resetForm() {
+    setNama("");
+    setNik("");
+    setNoHp("");
+    setNoRumah("");
+    setAlamat("");
+
+    setEditMode(false);
+    setEditId("");
+  }
+
+  function handleEdit(item: any) {
+    setEditMode(true);
+    setEditId(item.id);
+
+    setNama(item.nama || "");
+    setNik(item.nik || "");
+    setNoHp(item.no_hp || "");
+
+    setOpenModal(true);
+  }
+
   // =========================
   // PAGINATION
   // =========================
@@ -60,8 +85,8 @@ export default function Warga() {
   async function tambahWarga(e: any) {
     e.preventDefault();
 
-    if (!nama || !nik || !noHp || !noRumah) {
-      alert("Lengkapi data");
+    if (!nama || !noHp) {
+      alert("Nama dan No HP wajib diisi");
       return;
     }
 
@@ -73,7 +98,7 @@ export default function Warga() {
         .insert([
           {
             nama,
-            nik,
+            nik: nik || null,
             no_hp: noHp,
           },
         ])
@@ -115,6 +140,59 @@ export default function Warga() {
     }
   }
 
+  async function simpanWarga(e: any) {
+    e.preventDefault();
+
+    if (!nama || !noHp) {
+      alert("Nama dan No HP wajib diisi");
+      return;
+    }
+
+    try {
+      setLoading(true);
+
+      if (editMode) {
+        const { error } = await supabase
+          .from("warga")
+          .update({
+            nama,
+            nik: nik || null,
+            no_hp: noHp,
+          })
+          .eq("id", editId);
+
+        if (error) {
+          alert(error.message);
+          return;
+        }
+
+        alert("Data warga berhasil diperbarui");
+      } else {
+        const { error } = await supabase.from("warga").insert([
+          {
+            nama,
+            nik: nik || null,
+            no_hp: noHp,
+          },
+        ]);
+
+        if (error) {
+          alert(error.message);
+          return;
+        }
+
+        alert("Warga berhasil ditambahkan");
+      }
+
+      resetForm();
+      setOpenModal(false);
+
+      await getData();
+    } finally {
+      setLoading(false);
+    }
+  }
+
   // =========================
   // DELETE
   // =========================
@@ -147,8 +225,11 @@ export default function Warga() {
           {/* BUTTON OPEN MODAL */}
           <button
             disabled
-            onClick={() => setOpenModal(true)}
-            className="bg-black text-white px-5 py-3 rounded-xl hover:opacity-90"
+            onClick={() => {
+              resetForm();
+              setOpenModal(true);
+            }}
+            className="bg-black text-white px-5 py-3 rounded-xl"
           >
             + Tambah Warga
           </button>
@@ -168,9 +249,7 @@ export default function Warga() {
 
                   {/* <th className="px-4 py-3 text-left">Tanggal Input</th> */}
 
-                  {/* <th className="px-4 py-3 text-right">
-                    Aksi
-                  </th> */}
+                  <th className="px-4 py-3 text-center">Aksi</th>
                 </tr>
               </thead>
 
@@ -209,6 +288,15 @@ export default function Warga() {
                         Hapus
                       </button>
                     </td> */}
+
+                    <td className="px-4 py-3 text-center">
+                      <button
+                        onClick={() => handleEdit(item)}
+                        className="bg-yellow-100 text-yellow-700 px-3 py-1 rounded-lg text-xs"
+                      >
+                        Edit
+                      </button>
+                    </td>
                   </tr>
                 ))}
               </tbody>
@@ -259,7 +347,9 @@ export default function Warga() {
           <div className="bg-white w-full max-w-lg rounded-2xl p-6">
             {/* HEADER */}
             <div className="flex justify-between items-center mb-4">
-              <h2 className="text-xl font-bold">Tambah Warga</h2>
+              <h2 className="text-xl font-bold">
+                {editMode ? "Edit Warga" : "Tambah Warga"}
+              </h2>
 
               <button
                 onClick={() => setOpenModal(false)}
@@ -270,7 +360,7 @@ export default function Warga() {
             </div>
 
             {/* FORM */}
-            <form onSubmit={tambahWarga} className="space-y-3">
+            <form onSubmit={simpanWarga} className="space-y-3">
               {/* NAMA */}
               <input
                 placeholder="Nama"
@@ -281,7 +371,7 @@ export default function Warga() {
 
               {/* NIK */}
               <input
-                placeholder="NIK"
+                placeholder="NIK (Opsional)"
                 value={nik}
                 onChange={(e) => setNik(e.target.value)}
                 className="w-full border rounded-xl px-3 py-2"
@@ -330,7 +420,7 @@ export default function Warga() {
                   className="flex-1 bg-black text-white rounded-xl py-2"
                   disabled={loading}
                 >
-                  {loading ? "Menyimpan..." : "Simpan"}
+                  {loading ? "Menyimpan..." : editMode ? "Update" : "Simpan"}
                 </button>
               </div>
             </form>
