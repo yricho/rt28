@@ -1,8 +1,9 @@
 "use client";
 
+import { Pencil, Search } from "lucide-react";
+import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { supabase } from "../lib/supabase";
-import Link from "next/link";
 
 const PAGE_SIZE = 10;
 
@@ -12,6 +13,8 @@ export default function Warga() {
 
   const [editMode, setEditMode] = useState(false);
   const [editId, setEditId] = useState("");
+
+  const [search, setSearch] = useState("");
 
   // MODAL
   const [openModal, setOpenModal] = useState(false);
@@ -67,17 +70,29 @@ export default function Warga() {
     setOpenModal(true);
   }
 
+  const filteredWarga = useMemo(() => {
+    return warga.filter((item) => {
+      const keyword = search.toLowerCase();
+
+      return (
+        item.nama?.toLowerCase().includes(keyword) ||
+        item.nik?.toLowerCase().includes(keyword) ||
+        item.no_hp?.toLowerCase().includes(keyword)
+      );
+    });
+  }, [warga, search]);
+
   // =========================
   // PAGINATION
   // =========================
-  const totalPages = Math.ceil(warga.length / PAGE_SIZE);
+  const totalPages = Math.ceil(filteredWarga.length / PAGE_SIZE);
 
   const paginatedWarga = useMemo(() => {
     const start = (page - 1) * PAGE_SIZE;
     const end = start + PAGE_SIZE;
 
-    return warga.slice(start, end);
-  }, [warga, page]);
+    return filteredWarga.slice(start, end);
+  }, [filteredWarga, page]);
 
   // =========================
   // TAMBAH WARGA
@@ -235,6 +250,25 @@ export default function Warga() {
           </button>
         </div>
 
+        <div className="bg-white border rounded-2xl p-4 mb-4">
+          <div className="relative">
+            <Search
+              size={18}
+              className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
+            />
+
+            <input
+              value={search}
+              onChange={(e) => {
+                setSearch(e.target.value);
+                setPage(1);
+              }}
+              placeholder="Cari warga..."
+              className="w-full pl-10 pr-4 py-3 border rounded-xl"
+            />
+          </div>
+        </div>
+
         {/* TABLE */}
         <div className="bg-white border rounded-2xl overflow-hidden">
           <div className="overflow-x-auto">
@@ -289,12 +323,12 @@ export default function Warga() {
                       </button>
                     </td> */}
 
-                    <td className="px-4 py-3 text-center">
+                    <td className="px-2 py-3 text-center">
                       <button
                         onClick={() => handleEdit(item)}
                         className="bg-yellow-100 text-yellow-700 px-3 py-1 rounded-lg text-xs"
                       >
-                        Edit
+                        <Pencil />
                       </button>
                     </td>
                   </tr>
@@ -309,7 +343,8 @@ export default function Warga() {
           <div className="flex flex-col md:flex-row items-center justify-between gap-4 mt-5">
             <p className="text-sm text-gray-500">
               Menampilkan {(page - 1) * PAGE_SIZE + 1} -{" "}
-              {Math.min(page * PAGE_SIZE, warga.length)} dari {warga.length}{" "}
+              {Math.min(page * PAGE_SIZE, filteredWarga.length)} dari{" "}
+              {filteredWarga.length}
               data
             </p>
 
@@ -343,7 +378,7 @@ export default function Warga() {
 
       {/* ================= MODAL ================= */}
       {openModal && (
-        <div className="fixed inset-0 bg-black/40 flex items-center justify-center p-4">
+        <div className="fixed inset-0 bg-black/40 flex items-end md:items-center justify-center z-50">
           <div className="bg-white w-full max-w-lg rounded-2xl p-6">
             {/* HEADER */}
             <div className="flex justify-between items-center mb-4">

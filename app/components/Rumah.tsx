@@ -1,10 +1,10 @@
 "use client";
 
-import { LoaderCircle } from "lucide-react";
+import { LoaderCircle, Pencil, Trash2 } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { supabase } from "../lib/supabase";
 import { toast } from "sonner";
+import { supabase } from "../lib/supabase";
 
 const PAGE_SIZE = 10;
 
@@ -272,6 +272,7 @@ export default function Rumah() {
               setEditMode(false);
               setOpenModal(true);
             }}
+            className="bg-black text-white px-5 py-3 rounded-xl"
           >
             + Tambah Rumah
           </button>
@@ -356,9 +357,9 @@ export default function Rumah() {
                           <div className="flex justify-center gap-2">
                             <button
                               onClick={() => handleEdit(item)}
-                              className="px-3 py-1 rounded-lg bg-yellow-100 text-yellow-700 hover:bg-yellow-200"
+                              className="px-2 py-1 rounded-lg bg-yellow-100 text-yellow-700 hover:bg-yellow-200"
                             >
-                              Edit
+                              <Pencil />
                             </button>
 
                             {isAdmin && (
@@ -369,9 +370,9 @@ export default function Rumah() {
                                     `${item.blok}/${item.no_rumah}`,
                                   );
                                 }}
-                                className="px-3 py-1 rounded-lg bg-red-100 text-red-700 hover:bg-red-200"
+                                className="px-2 py-1 rounded-lg bg-red-100 text-red-700 hover:bg-red-200"
                               >
-                                Hapus
+                                <Trash2 />
                               </button>
                             )}
                           </div>
@@ -431,6 +432,7 @@ export default function Rumah() {
             <form onSubmit={handleSubmit} className="space-y-3">
               {/* WARGA */}
               <select
+                disabled
                 value={form.warga_id}
                 onChange={(e) => setForm({ ...form, warga_id: e.target.value })}
                 className="w-full border rounded-xl px-3 py-2"
@@ -448,6 +450,7 @@ export default function Rumah() {
 
               {/* BLOK */}
               <input
+                disabled
                 value={form.blok}
                 onChange={(e) => setForm({ ...form, blok: e.target.value })}
                 placeholder="Blok (contoh: A3A)"
@@ -456,6 +459,7 @@ export default function Rumah() {
 
               {/* NO RUMAH */}
               <input
+                disabled
                 value={form.no_rumah}
                 onChange={(e) => setForm({ ...form, no_rumah: e.target.value })}
                 placeholder="No Rumah"
@@ -508,7 +512,7 @@ export default function Rumah() {
 
       {deleteId && (
         <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
-          <div className="bg-white rounded-3xl w-full max-w-md p-6">
+          <div className="bg-white rounded-3xl w-full max-w-md p-6 mx-4">
             <h2 className="text-xl font-bold">Hapus Rumah</h2>
 
             <p className="text-gray-500 mt-2">Yakin ingin menghapus rumah:</p>
