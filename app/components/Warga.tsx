@@ -8,6 +8,8 @@ import { supabase } from "../lib/supabase";
 const PAGE_SIZE = 10;
 
 export default function Warga() {
+  const [user, setUser] = useState<any>(null);
+
   const [warga, setWarga] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
 
@@ -32,6 +34,22 @@ export default function Warga() {
   useEffect(() => {
     getData();
   }, []);
+
+  useEffect(() => {
+    const getUser = async () => {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+
+      setUser(user);
+    };
+
+    getUser();
+  }, []);
+
+  const ADMIN_EMAILS = ["yusuf.onaola@gmail.com"];
+
+  const isAdmin = ADMIN_EMAILS.includes(user?.email ?? "");
 
   // =========================
   // GET DATA
@@ -239,7 +257,7 @@ export default function Warga() {
 
           {/* BUTTON OPEN MODAL */}
           <button
-            disabled
+            disabled={!isAdmin}
             onClick={() => {
               resetForm();
               setOpenModal(true);

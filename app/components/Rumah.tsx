@@ -2,7 +2,7 @@
 
 import { LoaderCircle, Pencil, Trash2 } from "lucide-react";
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { supabase } from "../lib/supabase";
 
@@ -22,7 +22,6 @@ export default function Rumah() {
   const [deleteName, setDeleteName] = useState("");
 
   const [search, setSearch] = useState("");
-  const [debouncedSearch, setDebouncedSearch] = useState("");
 
   // PAGINATION
   const [page, setPage] = useState(1);
@@ -37,16 +36,43 @@ export default function Rumah() {
     status: "active",
   });
 
-  // =====================
-  // DEBOUNCE SEARCH
-  // =====================
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      setDebouncedSearch(search);
-    }, 400);
+  const debouncedSearch = search.trim().toLowerCase();
 
-    return () => clearTimeout(timer);
-  }, [search]);
+  const filteredRumah = useMemo(() => {
+    const keyword = search.toLowerCase().replace(/[^a-z0-9]/g, "");
+
+    if (!keyword) return rumah;
+
+    return rumah.filter((item) => {
+      const blok = (item.blok ?? "").toLowerCase().replace(/[^a-z0-9]/g, "");
+
+      const noRumah = String(item.no_rumah ?? "")
+        .toLowerCase()
+        .replace(/[^a-z0-9]/g, "");
+
+      const nama = (item.warga?.nama ?? "").toLowerCase();
+
+      const alamat = (item.alamat ?? "").toLowerCase();
+
+      const gabungan = `${blok}${noRumah}`;
+
+      return (
+        blok.includes(keyword) ||
+        noRumah.includes(keyword) ||
+        nama.includes(keyword) ||
+        alamat.includes(keyword) ||
+        gabungan.includes(keyword)
+      );
+    });
+  }, [rumah, search]);
+
+  const totalPages = Math.ceil(filteredRumah.length / PAGE_SIZE);
+
+  const paginatedRumah = useMemo(() => {
+    const start = (page - 1) * PAGE_SIZE;
+
+    return filteredRumah.slice(start, start + PAGE_SIZE);
+  }, [filteredRumah, page]);
 
   // RESET PAGE WHEN SEARCH
   useEffect(() => {
@@ -62,7 +88,7 @@ export default function Rumah() {
 
   useEffect(() => {
     getDataRumah();
-  }, [debouncedSearch, page]);
+  }, []);
 
   // =====================
   // GET RUMAH
@@ -70,36 +96,26 @@ export default function Rumah() {
   async function getDataRumah() {
     setLoading(true);
 
-    const from = (page - 1) * PAGE_SIZE;
-    const to = from + PAGE_SIZE - 1;
-
     let query = supabase
       .from("rumah")
       .select(
         `
+      id,
+      warga_id,
+      blok,
+      no_rumah,
+      status,
+      alamat,
+      created_at,
+      warga (
         id,
-        warga_id,
-        blok,
-        no_rumah,
-        status,
-        alamat,
-        created_at,
-        warga (
-          id,
-          nama,
-          no_hp
-        )
-      `,
+        nama,
+        no_hp
+      )
+    `,
         { count: "exact" },
       )
-      .order("blok", { ascending: true })
-      .range(from, to);
-
-    if (debouncedSearch) {
-      query = query.or(
-        `no_rumah.ilike.%${debouncedSearch}%,blok.ilike.%${debouncedSearch}%,alamat.ilike.%${debouncedSearch}%`,
-      );
-    }
+      .order("blok", { ascending: true });
 
     const { data, error, count } = await query;
 
@@ -226,8 +242,6 @@ export default function Rumah() {
     }
   }
 
-  const totalPages = Math.ceil(totalData / PAGE_SIZE);
-
   useEffect(() => {
     const getUser = async () => {
       const {
@@ -282,8 +296,8 @@ export default function Rumah() {
         <div className="bg-white border rounded-2xl p-4 mb-6">
           <input
             value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder="Cari blok / no rumah / alamat..."
+            onChange={(e) => setSearch(e.target.value.toUpperCase())}
+            placeholder="Cari blok / no rumah / nama warga"
             className="w-full border rounded-xl px-4 py-3 outline-none"
           />
         </div>
@@ -303,7 +317,7 @@ export default function Rumah() {
         )}
 
         {/* TABLE */}
-        {!loading && rumah.length > 0 && (
+        {!loading && paginatedRumah.length > 0 && (
           <>
             <div className="bg-white border border-gray-200 rounded-2xl overflow-hidden">
               <div className="overflow-x-auto">
@@ -321,7 +335,7 @@ export default function Rumah() {
 
                   {/* BODY */}
                   <tbody>
-                    {rumah.map((item) => (
+                    {paginatedRumah.map((item) => (
                       <tr
                         key={item.id}
                         className="border-t hover:bg-gray-50 transition"
@@ -349,7 +363,7 @@ export default function Rumah() {
                                 : "bg-red-100 text-red-700"
                             }`}
                           >
-                            {item.status === "active" ? "Active" : "Non Active"}
+                            {item.status === "active" ? "Huni" : "Belum Huni"}
                           </span>
                         </td>
 
@@ -432,7 +446,7 @@ export default function Rumah() {
             <form onSubmit={handleSubmit} className="space-y-3">
               {/* WARGA */}
               <select
-                disabled
+                disabled={editMode}
                 value={form.warga_id}
                 onChange={(e) => setForm({ ...form, warga_id: e.target.value })}
                 className="w-full border rounded-xl px-3 py-2"
@@ -450,16 +464,18 @@ export default function Rumah() {
 
               {/* BLOK */}
               <input
-                disabled
+                disabled={editMode}
                 value={form.blok}
-                onChange={(e) => setForm({ ...form, blok: e.target.value })}
+                onChange={(e) =>
+                  setForm({ ...form, blok: e.target.value.toUpperCase() })
+                }
                 placeholder="Blok (contoh: A3A)"
                 className="w-full border rounded-xl px-3 py-2"
               />
 
               {/* NO RUMAH */}
               <input
-                disabled
+                disabled={editMode}
                 value={form.no_rumah}
                 onChange={(e) => setForm({ ...form, no_rumah: e.target.value })}
                 placeholder="No Rumah"
@@ -481,8 +497,8 @@ export default function Rumah() {
                   }
                   className="w-full border rounded-xl px-4 py-3"
                 >
-                  <option value="active">Active</option>
-                  <option value="nonactive">Non Active</option>
+                  <option value="active">Huni</option>
+                  <option value="nonactive">Belum Huni</option>
                 </select>
               </div>
 
@@ -499,10 +515,10 @@ export default function Rumah() {
                 <button
                   type="submit"
                   className={`flex-1 rounded-xl py-2 text-white ${
-                    editMode ? "bg-amber-600" : "bg-black"
+                    editMode ? "bg-gray-900" : "bg-black"
                   }`}
                 >
-                  {editMode ? "Update Data" : "Simpan Data"}
+                  {editMode ? "Update" : "Simpan"}
                 </button>
               </div>
             </form>
