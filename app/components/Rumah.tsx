@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { supabase } from "../lib/supabase";
+import GoogleLocationPicker from "./maps/GoogleLocationPicker";
 
 const PAGE_SIZE = 10;
 
@@ -33,6 +34,8 @@ export default function Rumah() {
     blok: "",
     no_rumah: "",
     alamat: "",
+    latitude: "",
+    longitude: "",
     status: "active",
   });
 
@@ -164,6 +167,8 @@ export default function Rumah() {
       blok: form.blok,
       no_rumah: form.no_rumah,
       alamat: form.alamat,
+      latitude: form.latitude === "" ? null : Number(form.latitude),
+      longitude: form.longitude === "" ? null : Number(form.longitude),
       status: form.status,
     };
 
@@ -195,6 +200,8 @@ export default function Rumah() {
       no_rumah: "",
       alamat: "",
       status: "active",
+      latitude: "",
+      longitude: "",
     });
 
     setEditMode(false);
@@ -211,6 +218,8 @@ export default function Rumah() {
       blok: item.blok || "",
       no_rumah: item.no_rumah || "",
       alamat: item.alamat || "",
+      latitude: item.latitude ?? "",
+      longitude: item.longitude ?? "",
       status: item.status || "active",
     });
 
@@ -439,9 +448,9 @@ export default function Rumah() {
               {editMode ? "Edit Rumah" : "Tambah Rumah"}
             </h2>
 
-            <p className="text-sm text-gray-500 mb-4">
+            {/* <p className="text-sm text-gray-500 mb-4">
               {editMode ? "Perbarui data rumah" : "Tambahkan data rumah baru"}
-            </p>
+            </p> */}
 
             <form onSubmit={handleSubmit} className="space-y-3">
               {/* WARGA */}
@@ -462,26 +471,6 @@ export default function Rumah() {
                 ))}
               </select>
 
-              {/* BLOK */}
-              <input
-                disabled={editMode}
-                value={form.blok}
-                onChange={(e) =>
-                  setForm({ ...form, blok: e.target.value.toUpperCase() })
-                }
-                placeholder="Blok (contoh: A3A)"
-                className="w-full border rounded-xl px-3 py-2"
-              />
-
-              {/* NO RUMAH */}
-              <input
-                disabled={editMode}
-                value={form.no_rumah}
-                onChange={(e) => setForm({ ...form, no_rumah: e.target.value })}
-                placeholder="No Rumah"
-                className="w-full border rounded-xl px-3 py-2"
-              />
-
               {/* STATUS RUMAH */}
               <div className="mb-4">
                 <label className="block text-sm font-medium mb-2">
@@ -501,6 +490,90 @@ export default function Rumah() {
                   <option value="nonactive">Belum Huni</option>
                 </select>
               </div>
+
+              {/* BLOK */}
+              {/* <input
+                disabled={editMode}
+                value={form.blok}
+                onChange={(e) =>
+                  setForm({ ...form, blok: e.target.value.toUpperCase() })
+                }
+                placeholder="Blok (contoh: A3A)"
+                className="w-full border rounded-xl px-3 py-2"
+              /> */}
+
+              {/* NO RUMAH */}
+              {/* <input
+                disabled={editMode}
+                value={form.no_rumah}
+                onChange={(e) => setForm({ ...form, no_rumah: e.target.value })}
+                placeholder="No Rumah"
+                className="w-full border rounded-xl px-3 py-2"
+              /> */}
+
+              <GoogleLocationPicker
+                latitude={form.latitude}
+                longitude={form.longitude}
+                onChange={(lat: any, lng: any) =>
+                  setForm({
+                    ...form,
+                    latitude: lat,
+                    longitude: lng,
+                  })
+                }
+              />
+
+              {/* <div className="grid grid-cols-2 gap-3">
+                <input
+                  value={form.latitude}
+                  readOnly
+                  className="border rounded-xl px-3 py-2 bg-gray-100"
+                />
+
+                <input
+                  value={form.longitude}
+                  readOnly
+                  className="border rounded-xl px-3 py-2 bg-gray-100"
+                />
+              </div> */}
+
+              {/* <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-sm mb-1">Latitude</label>
+
+                  <input
+                    type="number"
+                    step="any"
+                    placeholder="-6.267743"
+                    value={form.latitude}
+                    onChange={(e) =>
+                      setForm({
+                        ...form,
+                        latitude: e.target.value,
+                      })
+                    }
+                    className="w-full border rounded-xl px-3 py-2"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm mb-1">Longitude</label>
+
+                  <input
+                    type="number"
+                    step="any"
+                    placeholder="106.628812"
+                    value={form.longitude}
+                    onChange={(e) =>
+                      setForm({
+                        ...form,
+                        longitude: e.target.value,
+                      })
+                    }
+                    className="w-full border rounded-xl px-3 py-2"
+                  />
+                </div>
+              </div> */}
 
               {/* BUTTON */}
               <div className="flex gap-2 pt-2">
