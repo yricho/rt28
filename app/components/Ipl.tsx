@@ -46,6 +46,10 @@ export default function IPLPage() {
   const [selectedMetode, setSelectedMetode] = useState("cash");
   const [page, setPage] = useState(1);
 
+  const [selectedNominal, setSelectedNominal] = useState<
+    Record<string, number>
+  >({});
+
   const [form, setForm] = useState({
     bulan: "",
     tahun: new Date().getFullYear(),
@@ -83,6 +87,7 @@ export default function IPLPage() {
         .select(
           `
     id,
+    rumah_id,
     bulan,
     tahun,
     nominal,
@@ -104,7 +109,7 @@ export default function IPLPage() {
     )
   `,
         )
-        .eq("rumah.status", "active")
+        // .eq("rumah.status", "active")
         .order("created_at", { ascending: false });
 
       if (error) throw new Error(error.message);
@@ -302,7 +307,7 @@ export default function IPLPage() {
   // BAYAR IPL
   // =========================
   async function bayarIpl(
-    id: number,
+    id: string,
     metode: string,
     wargaNama: string = "",
     blok: string = "",
@@ -312,34 +317,72 @@ export default function IPLPage() {
       .toLowerCase()
       .replace(/\b\w/g, (l) => l.toUpperCase());
 
-    // const confirmed = window.confirm(
-    //   `Konfirmasi pembayaran IPL untuk ${wargaDisplayName} (${blok}/${noRumah}) dengan metode ${metode}?`,
-    // );
-
-    // if (!confirmed) return;
-
     setActionLoading(true);
 
     try {
-      const { error } = await supabase
+      // Normalize types before comparison to avoid mismatches between number and string
+      const item = ipl.find((x) => String(x.id) === String(id));
+
+      if (!item) throw new Error("Tagihan tidak ditemukan.");
+
+      // ==========================
+      // NOMINAL YANG DIPILIH
+      // ==========================
+      const nominal = selectedNominal[id] ?? item.nominal;
+
+      // ==========================
+      // UPDATE TAGIHAN IPL
+      // ==========================
+      const { error: tagihanError } = await supabase
         .from("tagihan_ipl")
         .update({
-          status: "lunas",
+          status: "LUNAS",
+          nominal,
           metode_pembayaran: metode,
           updated_by: user?.email || "Admin",
           updated_at: new Date().toISOString(),
         })
         .eq("id", id);
 
-      if (error) throw error;
+      if (tagihanError) throw tagihanError;
+
+      // ==========================
+      // UPDATE STATUS RUMAH (safely handle missing rumah)
+      // ==========================
+      const rumahId = item.rumah?.id;
+
+      if (rumahId) {
+        const { error: rumahError } = await supabase
+          .from("rumah")
+          .update({
+            status: nominal === 20000 ? "non_active" : "active",
+          })
+          .eq("id", rumahId);
+
+        if (rumahError) throw rumahError;
+      } else {
+        // If rumah is missing, log a warning and continue
+        console.warn(
+          `Rumah not found for tagihan id=${id}, skipping rumah status update.`,
+        );
+      }
 
       await getDataIPL();
 
-      toast.success(`Pembayaran ${wargaDisplayName} berhasil dicatat`);
+      toast.success(`Pembayaran ${wargaDisplayName} berhasil dicatat.`);
 
       setOpenMetodeModal(false);
       setSelectedIpl(null);
+
+      // bersihkan pilihan nominal sementara
+      setSelectedNominal((prev) => {
+        const copy = { ...prev };
+        delete copy[id];
+        return copy;
+      });
     } catch (err: any) {
+      console.error(err);
+
       toast.error(err.message);
     } finally {
       setActionLoading(false);
@@ -533,9 +576,23 @@ export default function IPLPage() {
                     <div className="text-right">
                       <p className="text-xs text-gray-400">Nominal</p>
 
-                      <p className="text-lg font-black text-gray-900">
-                        Rp {Number(item.nominal).toLocaleString("id-ID")}
-                      </p>
+                      <select
+                        disabled={isLunas}
+                        value={selectedNominal[item.id] ?? item.nominal}
+                        onChange={(e) =>
+                          setSelectedNominal((prev) => ({
+                            ...prev,
+                            [item.id]: Number(e.target.value),
+                          }))
+                        }
+                        className="mt-1 w-full rounded-xl border px-3 py-2 text-sm font-semibold"
+                      >
+                        <option value={item.nominal}>
+                          Rp {Number(item.nominal).toLocaleString("id-ID")}
+                        </option>
+
+                        <option value={20000}>Rp 20.000 (Belum Huni)</option>
+                      </select>
                     </div>
                   </div>
 
@@ -892,7 +949,7 @@ export default function IPLPage() {
                   disabled={actionLoading}
                   onClick={() =>
                     bayarIpl(
-                      selectedIpl.id,
+                      selectedIpl.id.toString(),
                       selectedMetode,
                       selectedIpl.rumah?.warga?.nama,
                       selectedIpl.rumah?.blok,

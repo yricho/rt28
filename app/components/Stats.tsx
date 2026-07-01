@@ -103,7 +103,7 @@ export default function Stats() {
   }
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-3 gap-5 mb-8">
+    <div className="grid grid-cols-1 md:grid-cols-2 gap-5 mb-8">
       {/* IPL LUNAS */}
       <div className="bg-white rounded-3xl border border-gray-200 p-6 shadow-sm">
         <p className="text-gray-500 text-sm">IPL Lunas</p>
@@ -119,10 +119,10 @@ export default function Stats() {
       </div>
 
       {/* WARGA */}
-      <div className="bg-white rounded-3xl border border-gray-200 p-6 shadow-sm">
+      {/* <div className="bg-white rounded-3xl border border-gray-200 p-6 shadow-sm">
         <p className="text-gray-500 text-sm">Total Warga</p>
         <h2 className="text-4xl font-bold mt-2 text-gray-900">{stats.warga}</h2>
-      </div>
+      </div> */}
 
       {/* IPL BELUM BAYAR */}
       {/* <div className="bg-white rounded-3xl border border-gray-200 p-6 shadow-sm">
