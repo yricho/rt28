@@ -1,21 +1,46 @@
 "use client";
 
+import type { User } from "@supabase/supabase-js";
 import { LoaderCircle, X } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
-import * as XLSX from "xlsx";
 import { supabase } from "../lib/supabase";
 import DetailIpl from "./detailipl";
+import Select, { type SelectOption } from "./Select";
 
 const PAGE_SIZE = 10;
 
+function formatRupiah(value: number) {
+  return `Rp ${Number(value).toLocaleString("id-ID")}`;
+}
+
+const BULAN_OPTIONS = [
+  "Januari",
+  "Februari",
+  "Maret",
+  "April",
+  "Mei",
+  "Juni",
+  "Juli",
+  "Agustus",
+  "September",
+  "Oktober",
+  "November",
+  "Desember",
+];
+
+const BULAN_SELECT_OPTIONS: SelectOption[] = BULAN_OPTIONS.map((bulan) => ({
+  value: bulan,
+  label: bulan,
+}));
+
 type TagihanIPL = {
-  id: number;
+  id: string;
   bulan: string;
   tahun: number;
   nominal: number;
-  status: "lunas" | "belum_bayar";
+  status: string;
   created_by: string;
   created_at: string;
   updated_at: string;
@@ -33,6 +58,7 @@ export default function IPLPage() {
   const [ipl, setIPL] = useState<TagihanIPL[]>([]);
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState(false);
+  const [exporting, setExporting] = useState(false);
   const [fetchError, setFetchError] = useState<string | null>(null);
 
   const [openModal, setOpenModal] = useState(false);
@@ -40,8 +66,6 @@ export default function IPLPage() {
   const [selectedIpl, setSelectedIpl] = useState<TagihanIPL | null>(null);
 
   const [search, setSearch] = useState("");
-  const [filterBulan, setFilterBulan] = useState("");
-  const [filterBlok, setFilterBlok] = useState("");
   const [openMetodeModal, setOpenMetodeModal] = useState(false);
   const [selectedMetode, setSelectedMetode] = useState("cash");
   const [page, setPage] = useState(1);
@@ -56,7 +80,7 @@ export default function IPLPage() {
     nominal: 0,
   });
 
-  const [user, setUser] = useState<any>(null);
+  const [user, setUser] = useState<User | null>(null);
 
   useEffect(() => {
     const getUser = async () => {
@@ -124,12 +148,10 @@ export default function IPLPage() {
   }
 
   useEffect(() => {
+    // Fetch data awal setelah komponen terpasang.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     getDataIPL();
   }, []);
-
-  useEffect(() => {
-    setPage(1);
-  }, [search, filterBulan, filterBlok]);
 
   // =========================
   // FILTER DATA
@@ -167,13 +189,9 @@ export default function IPLPage() {
         alamatRumah2.includes(keyword) ||
         alamatRumah3.includes(keyword);
 
-      const matchBulan = filterBulan
-        ? item.bulan.toLowerCase() === filterBulan.toLowerCase()
-        : true;
-
-      return matchSearch && matchBulan;
+      return matchSearch;
     });
-  }, [ipl, search, filterBulan]);
+  }, [ipl, search]);
 
   const totalPages = Math.ceil(filteredIPL.length / PAGE_SIZE);
 
@@ -182,76 +200,90 @@ export default function IPLPage() {
     return filteredIPL.slice(start, start + PAGE_SIZE);
   }, [filteredIPL, page]);
 
-  const sortedIPL = [...filteredIPL].sort((a, b) =>
-    (a.rumah?.warga?.nama || "").localeCompare(
-      b.rumah?.warga?.nama || "",
-      "id",
-      {
-        sensitivity: "base",
-      },
-    ),
-  );
+  async function exportExcel() {
+    if (exporting) return;
 
-  function exportExcel() {
     if (filteredIPL.length === 0) {
       toast.error("Tidak ada data untuk diexport");
       return;
     }
 
-    const totalLunas = filteredIPL
-      .filter((item) => item.status?.toLowerCase() === "lunas")
-      .reduce((total, item) => total + Number(item.nominal || 0), 0);
+    setExporting(true);
 
-    const totalBelumBayar = filteredIPL
-      .filter((item) => item.status?.toLowerCase() !== "lunas")
-      .reduce((total, item) => total + Number(item.nominal || 0), 0);
+    try {
+      // Library xlsx cukup besar, jadi dimuat hanya saat tombol export dipakai.
+      const XLSX = await import("xlsx");
 
-    const totalTagihan = filteredIPL.reduce(
-      (total, item) => total + Number(item.nominal || 0),
-      0,
-    );
+      const sortedIPL = [...filteredIPL].sort((a, b) =>
+        (a.rumah?.warga?.nama || "").localeCompare(
+          b.rumah?.warga?.nama || "",
+          "id",
+          {
+            sensitivity: "base",
+          },
+        ),
+      );
 
-    const rows = [
-      ["RINGKASAN IPL"],
-      [],
-      ["Total Tagihan", totalTagihan],
-      ["Total Sudah Dibayar", totalLunas],
-      ["Total Belum Dibayar", totalBelumBayar],
-      [],
-      [
-        "No",
-        "Nama Warga",
-        "Blok",
-        "No Rumah",
-        "Periode",
-        "Nominal",
-        "Status",
-        "Updated At",
-        "Updated By",
-      ],
-      ...sortedIPL.map((item, index) => [
-        index + 1,
-        item.rumah?.warga?.nama?.toUpperCase() ?? "-",
-        item.rumah?.blok ?? "-",
-        item.rumah?.no_rumah ?? "-",
-        `${item.bulan} ${item.tahun}`,
-        item.nominal,
-        item.status === "lunas" ? "LUNAS" : "BELUM BAYAR",
-        new Date(item.updated_at).toLocaleString("id-ID"),
-        item.updated_by ?? "-",
-      ]),
-    ];
+      const totalLunas = filteredIPL
+        .filter((item) => item.status?.toLowerCase() === "lunas")
+        .reduce((total, item) => total + Number(item.nominal || 0), 0);
 
-    const worksheet = XLSX.utils.aoa_to_sheet(rows);
+      const totalBelumBayar = filteredIPL
+        .filter((item) => item.status?.toLowerCase() !== "lunas")
+        .reduce((total, item) => total + Number(item.nominal || 0), 0);
 
-    const workbook = XLSX.utils.book_new();
+      const totalTagihan = filteredIPL.reduce(
+        (total, item) => total + Number(item.nominal || 0),
+        0,
+      );
 
-    XLSX.utils.book_append_sheet(workbook, worksheet, "Data IPL");
+      const rows = [
+        ["RINGKASAN IPL"],
+        [],
+        ["Total Tagihan", totalTagihan],
+        ["Total Sudah Dibayar", totalLunas],
+        ["Total Belum Dibayar", totalBelumBayar],
+        [],
+        [
+          "No",
+          "Nama Warga",
+          "Blok",
+          "No Rumah",
+          "Periode",
+          "Nominal",
+          "Status",
+          "Updated At",
+          "Updated By",
+        ],
+        ...sortedIPL.map((item, index) => [
+          index + 1,
+          item.rumah?.warga?.nama?.toUpperCase() ?? "-",
+          item.rumah?.blok ?? "-",
+          item.rumah?.no_rumah ?? "-",
+          `${item.bulan} ${item.tahun}`,
+          item.nominal,
+          item.status?.toLowerCase() === "lunas" ? "LUNAS" : "BELUM BAYAR",
+          new Date(item.updated_at).toLocaleString("id-ID"),
+          item.updated_by ?? "-",
+        ]),
+      ];
 
-    XLSX.writeFile(
-      workbook,
-      `data-ipl-${new Date().toISOString().split("T")[0]}.xlsx`,
-    );
+      const worksheet = XLSX.utils.aoa_to_sheet(rows);
+
+      const workbook = XLSX.utils.book_new();
+
+      XLSX.utils.book_append_sheet(workbook, worksheet, "Data IPL");
+
+      XLSX.writeFile(
+        workbook,
+        `data-ipl-${new Date().toISOString().split("T")[0]}.xlsx`,
+      );
+    } catch (error) {
+      console.error("Export Excel error:", error);
+      toast.error("Gagal export data Excel");
+    } finally {
+      setExporting(false);
+    }
   }
 
   // =========================
@@ -310,8 +342,6 @@ export default function IPLPage() {
     id: string,
     metode: string,
     wargaNama: string = "",
-    blok: string = "",
-    noRumah: string = "",
   ) {
     const wargaDisplayName = wargaNama
       .toLowerCase()
@@ -336,7 +366,7 @@ export default function IPLPage() {
       const { error: tagihanError } = await supabase
         .from("tagihan_ipl")
         .update({
-          status: "LUNAS",
+          status: "lunas",
           nominal,
           metode_pembayaran: metode,
           updated_by: user?.email || "Admin",
@@ -355,7 +385,7 @@ export default function IPLPage() {
         const { error: rumahError } = await supabase
           .from("rumah")
           .update({
-            status: nominal === 20000 ? "non_active" : "active",
+            status: nominal === 20000 ? "nonactive" : "active",
           })
           .eq("id", rumahId);
 
@@ -380,29 +410,16 @@ export default function IPLPage() {
         delete copy[id];
         return copy;
       });
-    } catch (err: any) {
+    } catch (err) {
       console.error(err);
 
-      toast.error(err.message);
+      toast.error(
+        err instanceof Error ? err.message : "Gagal mencatat pembayaran",
+      );
     } finally {
       setActionLoading(false);
     }
   }
-
-  const BULAN_OPTIONS = [
-    "Januari",
-    "Februari",
-    "Maret",
-    "April",
-    "Mei",
-    "Juni",
-    "Juli",
-    "Agustus",
-    "September",
-    "Oktober",
-    "November",
-    "Desember",
-  ];
 
   // =========================
   // LOADING
@@ -458,9 +475,10 @@ export default function IPLPage() {
           <div className="grid grid-cols-2 gap-3">
             <button
               onClick={exportExcel}
-              className="h-12 rounded-xl bg-green-600 text-white font-medium shadow-sm active:scale-95 transition"
+              disabled={exporting}
+              className="h-12 rounded-xl bg-green-600 text-white font-medium shadow-sm active:scale-95 transition disabled:opacity-50"
             >
-              Export Excel
+              {exporting ? "Menyiapkan..." : "Export Excel"}
             </button>
             <button
               disabled={isAdmin ? false : true}
@@ -486,7 +504,10 @@ export default function IPLPage() {
 
           <input
             value={search}
-            onChange={(e) => setSearch(e.target.value.toUpperCase())}
+            onChange={(e) => {
+              setSearch(e.target.value.toUpperCase());
+              setPage(1);
+            }}
             placeholder="A3A25"
             className="w-full h-14 rounded-3xl border-2 border-gray-200 px-4 text-2xl font-black outline-none focus:border-black"
           />
@@ -576,23 +597,40 @@ export default function IPLPage() {
                     <div className="text-right">
                       <p className="text-xs text-gray-400">Nominal</p>
 
-                      <select
-                        disabled={isLunas}
-                        value={selectedNominal[item.id] ?? item.nominal}
-                        onChange={(e) =>
+                      <Select
+                        ariaLabel={`Nominal IPL ${item.rumah?.blok ?? ""}/${item.rumah?.no_rumah ?? ""}`}
+                        value={String(selectedNominal[item.id] ?? item.nominal)}
+                        onChange={(nominal) =>
                           setSelectedNominal((prev) => ({
                             ...prev,
-                            [item.id]: Number(e.target.value),
+                            [item.id]: Number(nominal),
                           }))
                         }
-                        className="mt-1 w-full rounded-xl border px-3 py-2 text-sm font-semibold"
-                      >
-                        <option value={item.nominal}>
-                          Rp {Number(item.nominal).toLocaleString("id-ID")}
-                        </option>
-
-                        <option value={20000}>Rp 20.000 (Belum Huni)</option>
-                      </select>
+                        options={
+                          Number(item.nominal) === 20000
+                            ? [
+                                {
+                                  value: "20000",
+                                  label: formatRupiah(20000),
+                                  hint: "Belum Huni",
+                                },
+                              ]
+                            : [
+                                {
+                                  value: String(item.nominal),
+                                  label: formatRupiah(item.nominal),
+                                },
+                                {
+                                  value: "20000",
+                                  label: formatRupiah(20000),
+                                  hint: "Belum Huni",
+                                },
+                              ]
+                        }
+                        disabled={isLunas}
+                        menuMinWidth={230}
+                        className="mt-1 min-w-[150px]"
+                      />
                     </div>
                   </div>
 
@@ -819,18 +857,14 @@ export default function IPLPage() {
             <div className="bg-white w-full max-w-md p-6 rounded-2xl">
               <h2 className="text-xl font-bold mb-4">Generate IPL</h2>
 
-              <select
+              <Select
+                ariaLabel="Pilih bulan IPL"
                 value={form.bulan}
-                onChange={(e) => setForm({ ...form, bulan: e.target.value })}
-                className="w-full border px-3 py-2 rounded-xl mb-3"
-              >
-                <option value="">Pilih Bulan</option>
-                {BULAN_OPTIONS.map((b) => (
-                  <option key={b} value={b}>
-                    {b}
-                  </option>
-                ))}
-              </select>
+                onChange={(bulan) => setForm({ ...form, bulan })}
+                options={BULAN_SELECT_OPTIONS}
+                placeholder="Pilih Bulan"
+                className="mb-3"
+              />
 
               <input
                 type="number"
@@ -873,7 +907,7 @@ export default function IPLPage() {
 
         {/* MODAL DETAIL */}
 
-        {openModalDetail && (
+        {openModalDetail && selectedIpl && (
           <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4">
             <div className="relative bg-white w-full max-w-md rounded-3xl shadow-2xl overflow-hidden">
               {/* CLOSE BUTTON */}
@@ -949,11 +983,9 @@ export default function IPLPage() {
                   disabled={actionLoading}
                   onClick={() =>
                     bayarIpl(
-                      selectedIpl.id.toString(),
+                      selectedIpl.id,
                       selectedMetode,
                       selectedIpl.rumah?.warga?.nama,
-                      selectedIpl.rumah?.blok,
-                      selectedIpl.rumah?.no_rumah,
                     )
                   }
                   className="h-11 rounded-2xl bg-green-600 text-white font-semibold disabled:opacity-50"

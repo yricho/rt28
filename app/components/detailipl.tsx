@@ -1,19 +1,25 @@
 "use client";
 
+import { LoaderCircle } from "lucide-react";
 import { useEffect, useState } from "react";
 import { supabase } from "@/app/lib/supabase";
-import { LoaderCircle } from "lucide-react";
+import type { RumahRingkas, TagihanIPLItem } from "@/app/types/ipl";
 
-export default function DetailIpl({ data }: { data: any }) {
-  const [rumahData, setRumahData] = useState<any>(null);
-  const [iplData, setIplData] = useState<any[]>([]);
+type DetailIplData = {
+  rumah: { blok: string; no_rumah: string } | null;
+};
+
+export default function DetailIpl({ data }: { data: DetailIplData }) {
+  const [rumahData, setRumahData] = useState<RumahRingkas | null>(null);
+  const [iplData, setIplData] = useState<TagihanIPLItem[]>([]);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    loadData();
-  }, []);
-
   async function loadData() {
+    if (!data.rumah) {
+      setLoading(false);
+      return;
+    }
+
     const { blok, no_rumah } = data.rumah;
 
     const { data: rumah } = await supabase
@@ -39,18 +45,26 @@ export default function DetailIpl({ data }: { data: any }) {
       return;
     }
 
-    setRumahData(rumah);
+    setRumahData(rumah as unknown as RumahRingkas);
 
     const { data: tagihan } = await supabase
       .from("tagihan_ipl")
-      .select("*")
+      .select(
+        "id, bulan, tahun, nominal, status, metode_pembayaran, created_at, updated_at, updated_by",
+      )
       .eq("rumah_id", rumah.id)
       .order("tahun", { ascending: false })
       .order("created_at", { ascending: false });
 
-    setIplData(tagihan || []);
+    setIplData((tagihan as TagihanIPLItem[]) || []);
     setLoading(false);
   }
+
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    loadData();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   if (loading) {
     return (
@@ -150,7 +164,7 @@ export default function DetailIpl({ data }: { data: any }) {
               ? item.updated_by
                   .split("@")[0]
                   .replace(/\./g, " ")
-                  .replace(/\b\w/g, (c: any) => c.toUpperCase())
+                  .replace(/\b\w/g, (c: string) => c.toUpperCase())
               : "-";
 
             return (

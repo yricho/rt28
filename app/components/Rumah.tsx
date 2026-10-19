@@ -1,19 +1,50 @@
 "use client";
 
+import type { User } from "@supabase/supabase-js";
 import { LoaderCircle, Pencil, Trash2 } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { supabase } from "../lib/supabase";
-import GoogleLocationPicker from "./maps/GoogleLocationPicker";
 
 const PAGE_SIZE = 10;
 
-export default function Rumah() {
-  const [user, setUser] = useState<any>(null);
+type WargaRingkas = {
+  id: string;
+  nama: string;
+  no_hp: string | null;
+};
 
-  const [rumah, setRumah] = useState<any[]>([]);
-  const [warga, setWarga] = useState<any[]>([]);
+type RumahItem = {
+  id: string;
+  warga_id: string | null;
+  blok: string;
+  no_rumah: string;
+  status: string;
+  alamat: string | null;
+  latitude: number | null;
+  longitude: number | null;
+  created_at: string;
+  warga: WargaRingkas | WargaRingkas[] | null;
+};
+
+type WargaOption = {
+  id: string;
+  nama: string;
+  no_hp: string | null;
+};
+
+function getWarga(rumah: RumahItem) {
+  if (!rumah.warga) return null;
+
+  return Array.isArray(rumah.warga) ? (rumah.warga[0] ?? null) : rumah.warga;
+}
+
+export default function Rumah() {
+  const [user, setUser] = useState<User | null>(null);
+
+  const [rumah, setRumah] = useState<RumahItem[]>([]);
+  const [warga, setWarga] = useState<WargaOption[]>([]);
   const [loading, setLoading] = useState(true);
 
   const [openModal, setOpenModal] = useState(false);
@@ -26,10 +57,9 @@ export default function Rumah() {
 
   // PAGINATION
   const [page, setPage] = useState(1);
-  const [totalData, setTotalData] = useState(0);
 
   const [form, setForm] = useState({
-    id: null as number | null,
+    id: null as string | null,
     warga_id: "",
     blok: "",
     no_rumah: "",
@@ -38,8 +68,6 @@ export default function Rumah() {
     longitude: "",
     status: "active",
   });
-
-  const debouncedSearch = search.trim().toLowerCase();
 
   const filteredRumah = useMemo(() => {
     const keyword = search.toLowerCase().replace(/[^a-z0-9]/g, "");
@@ -53,7 +81,7 @@ export default function Rumah() {
         .toLowerCase()
         .replace(/[^a-z0-9]/g, "");
 
-      const nama = (item.warga?.nama ?? "").toLowerCase();
+      const nama = (getWarga(item)?.nama ?? "").toLowerCase();
 
       const alamat = (item.alamat ?? "").toLowerCase();
 
@@ -77,11 +105,6 @@ export default function Rumah() {
     return filteredRumah.slice(start, start + PAGE_SIZE);
   }, [filteredRumah, page]);
 
-  // RESET PAGE WHEN SEARCH
-  useEffect(() => {
-    setPage(1);
-  }, [debouncedSearch]);
-
   // =====================
   // INIT LOAD
   // =====================
@@ -97,41 +120,38 @@ export default function Rumah() {
   // GET RUMAH
   // =====================
   async function getDataRumah() {
-    setLoading(true);
+    try {
+      const { data, error } = await supabase
+        .from("rumah")
+        .select(
+          `
+          id,
+          warga_id,
+          blok,
+          no_rumah,
+          status,
+          alamat,
+          latitude,
+          longitude,
+          created_at,
+          warga (
+            id,
+            nama,
+            no_hp
+          )
+        `,
+        )
+        .order("blok", { ascending: true });
 
-    let query = supabase
-      .from("rumah")
-      .select(
-        `
-      id,
-      warga_id,
-      blok,
-      no_rumah,
-      status,
-      alamat,
-      created_at,
-      warga (
-        id,
-        nama,
-        no_hp
-      )
-    `,
-        { count: "exact" },
-      )
-      .order("blok", { ascending: true });
+      if (error) throw error;
 
-    const { data, error, count } = await query;
-
-    if (error) {
-      console.error("GET RUMAH ERROR:", error.message);
+      setRumah(data || []);
+    } catch (error) {
+      console.error("GET RUMAH ERROR:", error);
+      toast.error("Gagal memuat data rumah");
+    } finally {
       setLoading(false);
-      return;
     }
-
-    setRumah(data || []);
-    setTotalData(count || 0);
-
-    setLoading(false);
   }
 
   // =====================
@@ -158,9 +178,13 @@ export default function Rumah() {
     e.preventDefault();
 
     if (!form.no_rumah || !form.blok) {
-      alert("Blok & No Rumah wajib diisi");
+      toast.error("Blok & No Rumah wajib diisi");
       return;
     }
+
+    const successMessage = editMode
+      ? "Rumah berhasil diperbarui"
+      : "Rumah berhasil ditambahkan";
 
     const payload = {
       warga_id: form.warga_id,
@@ -178,15 +202,22 @@ export default function Rumah() {
         .update(payload)
         .eq("id", form.id);
 
-      if (error) return alert(error.message);
+      if (error) {
+        toast.error(error.message);
+        return;
+      }
     } else {
       const { error } = await supabase.from("rumah").insert(payload);
 
-      if (error) return alert(error.message);
+      if (error) {
+        toast.error(error.message);
+        return;
+      }
     }
 
+    toast.success(successMessage);
     resetForm();
-    getDataRumah();
+    await getDataRumah();
   }
 
   // =====================
@@ -211,15 +242,15 @@ export default function Rumah() {
   // =====================
   // EDIT
   // =====================
-  function handleEdit(item: any) {
+  function handleEdit(item: RumahItem) {
     setForm({
       id: item.id,
       warga_id: item.warga_id || "",
       blok: item.blok || "",
       no_rumah: item.no_rumah || "",
       alamat: item.alamat || "",
-      latitude: item.latitude ?? "",
-      longitude: item.longitude ?? "",
+      latitude: item.latitude == null ? "" : String(item.latitude),
+      longitude: item.longitude == null ? "" : String(item.longitude),
       status: item.status || "active",
     });
 
@@ -244,8 +275,8 @@ export default function Rumah() {
       setDeleteName("");
 
       await getDataRumah();
-    } catch (err: any) {
-      toast.error(err.message);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Gagal menghapus rumah");
     } finally {
       setLoading(false);
     }
@@ -305,7 +336,10 @@ export default function Rumah() {
         <div className="bg-white border rounded-2xl p-4 mb-6">
           <input
             value={search}
-            onChange={(e) => setSearch(e.target.value.toUpperCase())}
+            onChange={(e) => {
+              setSearch(e.target.value.toUpperCase());
+              setPage(1);
+            }}
             placeholder="Cari blok / no rumah / nama warga"
             className="w-full border rounded-xl px-4 py-3 outline-none"
           />
@@ -356,13 +390,8 @@ export default function Rumah() {
 
                         {/* WARGA */}
                         <td className="px-4 py-3 font-medium text-gray-900 capitalize">
-                          {item.warga?.nama ?? "Belum ada"}
+                          {getWarga(item)?.nama ?? "Belum ada"}
                         </td>
-
-                        {/* NO HP */}
-                        {/* <td className="px-4 py-3 text-center text-gray-600">
-                          {item.warga?.no_hp ?? "-"}
-                        </td> */}
 
                         <td className="px-4 py-3 text-center">
                           <span
@@ -411,7 +440,8 @@ export default function Rumah() {
             <div className="flex flex-col md:flex-row items-center justify-between gap-4 mt-5">
               <p className="text-sm text-gray-500">
                 Menampilkan {(page - 1) * PAGE_SIZE + 1} -{" "}
-                {Math.min(page * PAGE_SIZE, totalData)} dari {totalData} data
+                {Math.min(page * PAGE_SIZE, filteredRumah.length)} dari{" "}
+                {filteredRumah.length} data
               </p>
 
               <div className="flex items-center gap-2">
@@ -491,37 +521,40 @@ export default function Rumah() {
                 </select>
               </div>
 
-              {/* BLOK */}
-              {/* <input
-                disabled={editMode}
-                value={form.blok}
-                onChange={(e) =>
-                  setForm({ ...form, blok: e.target.value.toUpperCase() })
-                }
-                placeholder="Blok (contoh: A3A)"
-                className="w-full border rounded-xl px-3 py-2"
-              /> */}
+              {/* BLOK & NO RUMAH */}
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-sm font-medium mb-2">Blok</label>
 
-              {/* NO RUMAH */}
-              {/* <input
-                disabled={editMode}
-                value={form.no_rumah}
-                onChange={(e) => setForm({ ...form, no_rumah: e.target.value })}
-                placeholder="No Rumah"
-                className="w-full border rounded-xl px-3 py-2"
-              /> */}
+                  <input
+                    disabled={editMode}
+                    value={form.blok}
+                    onChange={(e) =>
+                      setForm({ ...form, blok: e.target.value.toUpperCase() })
+                    }
+                    placeholder="Contoh: A3"
+                    required
+                    className="w-full border rounded-xl px-3 py-2 disabled:bg-gray-100"
+                  />
+                </div>
 
-              <GoogleLocationPicker
-                latitude={form.latitude}
-                longitude={form.longitude}
-                onChange={(lat: any, lng: any) =>
-                  setForm({
-                    ...form,
-                    latitude: lat,
-                    longitude: lng,
-                  })
-                }
-              />
+                <div>
+                  <label className="block text-sm font-medium mb-2">
+                    No Rumah
+                  </label>
+
+                  <input
+                    disabled={editMode}
+                    value={form.no_rumah}
+                    onChange={(e) =>
+                      setForm({ ...form, no_rumah: e.target.value })
+                    }
+                    placeholder="Contoh: 6"
+                    required
+                    className="w-full border rounded-xl px-3 py-2 disabled:bg-gray-100"
+                  />
+                </div>
+              </div>
 
               {/* <div className="grid grid-cols-2 gap-3">
                 <input

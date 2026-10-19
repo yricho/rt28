@@ -1,16 +1,25 @@
 "use client";
 
+import type { User } from "@supabase/supabase-js";
 import { Pencil, Search } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
+import { toast } from "sonner";
 import { supabase } from "../lib/supabase";
 
 const PAGE_SIZE = 10;
 
-export default function Warga() {
-  const [user, setUser] = useState<any>(null);
+type WargaItem = {
+  id: string;
+  nama: string;
+  nik: string | null;
+  no_hp: string | null;
+};
 
-  const [warga, setWarga] = useState<any[]>([]);
+export default function Warga() {
+  const [user, setUser] = useState<User | null>(null);
+
+  const [warga, setWarga] = useState<WargaItem[]>([]);
   const [loading, setLoading] = useState(false);
 
   const [editMode, setEditMode] = useState(false);
@@ -28,8 +37,6 @@ export default function Warga() {
   const [nama, setNama] = useState("");
   const [nik, setNik] = useState("");
   const [noHp, setNoHp] = useState("");
-  const [noRumah, setNoRumah] = useState("");
-  const [alamat, setAlamat] = useState("");
 
   useEffect(() => {
     getData();
@@ -55,29 +62,33 @@ export default function Warga() {
   // GET DATA
   // =========================
   async function getData() {
-    setLoading(true);
+    try {
+      const { data, error } = await supabase
+        .from("warga")
+        .select("id, nama, nik, no_hp")
+        .order("nama", { ascending: true });
 
-    const { data } = await supabase
-      .from("warga")
-      .select("*")
-      .order("nama", { ascending: true });
+      if (error) throw error;
 
-    setWarga(data || []);
-    setLoading(false);
+      setWarga(data || []);
+    } catch (error) {
+      console.error("GET WARGA ERROR:", error);
+      toast.error("Gagal memuat data warga");
+    } finally {
+      setLoading(false);
+    }
   }
 
   function resetForm() {
     setNama("");
     setNik("");
     setNoHp("");
-    setNoRumah("");
-    setAlamat("");
 
     setEditMode(false);
     setEditId("");
   }
 
-  function handleEdit(item: any) {
+  function handleEdit(item: WargaItem) {
     setEditMode(true);
     setEditId(item.id);
 
@@ -89,13 +100,19 @@ export default function Warga() {
   }
 
   const filteredWarga = useMemo(() => {
+    const keyword = search.toLowerCase().trim();
+
+    if (!keyword) return warga;
+
     return warga.filter((item) => {
-      const keyword = search.toLowerCase();
+      const nama = String(item.nama ?? "").toLowerCase();
+      const nik = String(item.nik ?? "").toLowerCase();
+      const noHp = String(item.no_hp ?? "").toLowerCase();
 
       return (
-        item.nama?.toLowerCase().includes(keyword) ||
-        item.nik?.toLowerCase().includes(keyword) ||
-        item.no_hp?.toLowerCase().includes(keyword)
+        nama.includes(keyword) ||
+        nik.includes(keyword) ||
+        noHp.includes(keyword)
       );
     });
   }, [warga, search]);
@@ -112,72 +129,11 @@ export default function Warga() {
     return filteredWarga.slice(start, end);
   }, [filteredWarga, page]);
 
-  // =========================
-  // TAMBAH WARGA
-  // =========================
-  async function tambahWarga(e: any) {
+  async function simpanWarga(e: React.FormEvent) {
     e.preventDefault();
 
     if (!nama || !noHp) {
-      alert("Nama dan No HP wajib diisi");
-      return;
-    }
-
-    try {
-      setLoading(true);
-
-      const { data: wargaBaru, error: errWarga } = await supabase
-        .from("warga")
-        .insert([
-          {
-            nama,
-            nik: nik || null,
-            no_hp: noHp,
-          },
-        ])
-        .select()
-        .single();
-
-      if (errWarga) {
-        alert(errWarga.message);
-        return;
-      }
-
-      const { error: errRumah } = await supabase.from("rumah").insert([
-        {
-          warga_id: wargaBaru.id,
-          no_rumah: noRumah,
-          alamat,
-        },
-      ]);
-
-      if (errRumah) {
-        alert(errRumah.message);
-        return;
-      }
-
-      // RESET
-      setNama("");
-      setNik("");
-      setNoHp("");
-      setNoRumah("");
-      setAlamat("");
-
-      setOpenModal(false);
-
-      await getData();
-
-      alert("Warga berhasil ditambahkan");
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  async function simpanWarga(e: any) {
-    e.preventDefault();
-
-    if (!nama || !noHp) {
-      alert("Nama dan No HP wajib diisi");
+      toast.error("Nama dan No HP wajib diisi");
       return;
     }
 
@@ -194,12 +150,9 @@ export default function Warga() {
           })
           .eq("id", editId);
 
-        if (error) {
-          alert(error.message);
-          return;
-        }
+        if (error) throw error;
 
-        alert("Data warga berhasil diperbarui");
+        toast.success("Data warga berhasil diperbarui");
       } else {
         const { error } = await supabase.from("warga").insert([
           {
@@ -209,32 +162,23 @@ export default function Warga() {
           },
         ]);
 
-        if (error) {
-          alert(error.message);
-          return;
-        }
+        if (error) throw error;
 
-        alert("Warga berhasil ditambahkan");
+        toast.success("Warga berhasil ditambahkan");
       }
 
       resetForm();
       setOpenModal(false);
 
       await getData();
+    } catch (error) {
+      console.error("SIMPAN WARGA ERROR:", error);
+      toast.error(
+        error instanceof Error ? error.message : "Gagal menyimpan data warga",
+      );
     } finally {
       setLoading(false);
     }
-  }
-
-  // =========================
-  // DELETE
-  // =========================
-  async function hapusWarga(id: number) {
-    if (!confirm("Hapus warga ini?")) return;
-
-    await supabase.from("warga").delete().eq("id", id);
-
-    getData();
   }
 
   return (
@@ -305,7 +249,7 @@ export default function Warga() {
                 </tr>
               </thead>
 
-              <tbody>
+              <tbody className="text-gray-700">
                 {paginatedWarga.length === 0 && (
                   <tr>
                     <td colSpan={5} className="text-center py-10 text-gray-500">
@@ -316,34 +260,23 @@ export default function Warga() {
 
                 {paginatedWarga.map((item) => (
                   <tr key={item.id} className="border-t hover:bg-gray-50">
-                    <td className="px-4 py-3 font-medium capitalize">
+                    <td className="px-4 py-3 font-medium capitalize text-gray-900">
                       {item.nama}
                     </td>
 
-                    <td className="px-4 py-3 text-center">{item.nik ?? "-"}</td>
+                    <td className="px-4 py-3 text-center text-gray-700">
+                      {item.nik ?? "-"}
+                    </td>
 
-                    <td className="px-4 py-3 text-center">
+                    <td className="px-4 py-3 text-center text-gray-700">
                       {item.no_hp ?? "-"}
                     </td>
 
-                    {/* <td className="px-4 py-3 text-gray-500">
-                      {item.created_at
-                        ? new Date(item.created_at).toLocaleDateString("id-ID")
-                        : "-"}
-                    </td> */}
-
-                    {/* <td className="px-4 py-3 text-right">
-                      <button
-                        onClick={() => hapusWarga(item.id)}
-                        className="bg-red-50 text-red-600 px-3 py-1 rounded-lg text-xs"
-                      >
-                        Hapus
-                      </button>
-                    </td> */}
-
                     <td className="px-2 py-3 text-center">
                       <button
+                        type="button"
                         onClick={() => handleEdit(item)}
+                        aria-label={`Edit ${item.nama}`}
                         className="bg-yellow-100 text-yellow-700 px-3 py-1 rounded-lg text-xs"
                       >
                         <Pencil />
@@ -437,26 +370,6 @@ export default function Warga() {
                 onChange={(e) => setNoHp(e.target.value)}
                 className="w-full border rounded-xl px-3 py-2"
               />
-
-              {/* NO RUMAH */}
-              {/* <input
-                placeholder="No Rumah"
-                value={noRumah}
-                onChange={(e) =>
-                  setNoRumah(e.target.value)
-                }
-                className="w-full border rounded-xl px-3 py-2"
-              /> */}
-
-              {/* ALAMAT */}
-              {/* <textarea
-                placeholder="Alamat"
-                value={alamat}
-                onChange={(e) =>
-                  setAlamat(e.target.value)
-                }
-                className="w-full border rounded-xl px-3 py-2"
-              /> */}
 
               {/* BUTTON */}
               <div className="flex gap-2 pt-2">

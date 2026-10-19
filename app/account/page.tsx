@@ -1,6 +1,7 @@
 "use client";
 
 import { supabase } from "@/app/lib/supabase";
+import type { RumahRingkas, TagihanIPLItem } from "@/app/types/ipl";
 import { LoaderCircle } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
@@ -9,27 +10,12 @@ export default function AccountPage() {
   const router = useRouter();
 
   const [loading, setLoading] = useState(true);
-  const [rumahData, setRumahData] = useState<any>(null);
-  const [iplData, setIplData] = useState<any[]>([]);
-
-  useEffect(() => {
-    loadData();
-
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, session) => {
-      if (!session) {
-        router.replace("/login");
-      }
-    });
-
-    return () => subscription.unsubscribe();
-  }, []);
+  const [signingOut, setSigningOut] = useState(false);
+  const [rumahData, setRumahData] = useState<RumahRingkas | null>(null);
+  const [iplData, setIplData] = useState<TagihanIPLItem[]>([]);
 
   async function loadData() {
     try {
-      setLoading(true);
-
       const {
         data: { user },
       } = await supabase.auth.getUser();
@@ -67,7 +53,7 @@ export default function AccountPage() {
         ? akunRumah.rumah[0]
         : akunRumah?.rumah;
 
-      setRumahData(rumah);
+      setRumahData(rumah as unknown as RumahRingkas | null);
 
       if (!rumah?.id) {
         return;
@@ -75,7 +61,7 @@ export default function AccountPage() {
 
       const { data: tagihan, error: tagihanError } = await supabase
         .from("tagihan_ipl")
-        .select("*")
+        .select("id, bulan, tahun, nominal, status")
         .eq("rumah_id", rumah.id)
         .order("tahun", { ascending: false })
         .order("created_at", {
@@ -87,7 +73,7 @@ export default function AccountPage() {
         return;
       }
 
-      setIplData(tagihan || []);
+      setIplData((tagihan as TagihanIPLItem[]) || []);
     } catch (err) {
       console.error(err);
       router.replace("/login");
@@ -95,6 +81,22 @@ export default function AccountPage() {
       setLoading(false);
     }
   }
+
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    loadData();
+
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (!session) {
+        router.replace("/login");
+      }
+    });
+
+    return () => subscription.unsubscribe();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   if (loading) {
     return (
@@ -232,13 +234,20 @@ export default function AccountPage() {
 
       <div className="px-4">
         <button
+          type="button"
+          disabled={signingOut}
           onClick={async () => {
-            await supabase.auth.signOut();
-            router.replace("/login");
+            try {
+              setSigningOut(true);
+              await supabase.auth.signOut();
+              router.replace("/login");
+            } finally {
+              setSigningOut(false);
+            }
           }}
-          className="text-sm text-red-600 px-3 py-1 rounded-lg border border-red-600"
+          className="text-sm text-red-600 px-3 py-1 rounded-lg border border-red-600 disabled:opacity-50"
         >
-          Keluar
+          {signingOut ? "Keluar..." : "Keluar"}
         </button>
       </div>
     </div>

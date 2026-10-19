@@ -5,92 +5,50 @@ import { supabase } from "../lib/supabase";
 
 export default function Stats() {
   const [stats, setStats] = useState({
-    warga: 0,
     rumah: 0,
-    iplBelumBayar: 0,
     iplLunas: 0,
   });
 
   const [loading, setLoading] = useState(true);
 
+  async function getStats() {
+    try {
+      // Jalankan query secara paralel agar tidak saling menunggu.
+      const [rumahRes, iplLunas] = await Promise.all([
+        supabase.from("rumah").select("id", { count: "exact", head: true }),
+
+        supabase
+          .from("tagihan_ipl")
+          .select(
+            `
+            id,
+            rumah!inner(status)
+            `,
+            {
+              count: "exact",
+              head: true,
+            },
+          )
+          .ilike("status", "lunas")
+          .eq("rumah.status", "active"),
+      ]);
+
+      setStats({
+        rumah: rumahRes.count || 0,
+        iplLunas: iplLunas.count || 0,
+      });
+    } catch (error) {
+      console.error("Gagal memuat statistik:", error);
+    } finally {
+      setLoading(false);
+    }
+  }
+
   useEffect(() => {
+    // Ambil data awal setelah komponen terpasang.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     getStats();
   }, []);
-
-  async function getStats() {
-    setLoading(true);
-
-    // =====================
-    // TOTAL WARGA
-    // =====================
-    const wargaRes = await supabase
-      .from("warga")
-      .select("id", { count: "exact", head: true });
-
-    // =====================
-    // TOTAL RUMAH
-    // =====================
-    const rumahRes = await supabase
-      .from("rumah")
-      .select("id", { count: "exact", head: true });
-
-    // // =====================
-    // // IPL BELUM BAYAR
-    // // =====================
-    // const iplBelum = await supabase
-    //   .from("tagihan_ipl")
-    //   .select("id", { count: "exact", head: true })
-    //   .eq("status", "belum_bayar");
-
-    // // =====================
-    // // IPL LUNAS
-    // // =====================
-    // const iplLunas = await supabase
-    //   .from("tagihan_ipl")
-    //   .select("id", { count: "exact", head: true })
-    //   .eq("status", "lunas");
-
-    // IPL BELUM BAYAR
-    const iplBelum = await supabase
-      .from("tagihan_ipl")
-      .select(
-        `
-    id,
-    rumah!inner(status)
-    `,
-        {
-          count: "exact",
-          head: true,
-        },
-      )
-      .eq("status", "belum_bayar")
-      .eq("rumah.status", "active");
-
-    // IPL LUNAS
-    const iplLunas = await supabase
-      .from("tagihan_ipl")
-      .select(
-        `
-    id,
-    rumah!inner(status)
-    `,
-        {
-          count: "exact",
-          head: true,
-        },
-      )
-      .eq("status", "lunas")
-      .eq("rumah.status", "active");
-
-    setStats({
-      warga: wargaRes.count || 0,
-      rumah: rumahRes.count || 0,
-      iplBelumBayar: iplBelum.count || 0,
-      iplLunas: iplLunas.count || 0,
-    });
-
-    setLoading(false);
-  }
 
   if (loading) {
     return (

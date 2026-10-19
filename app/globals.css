@@ -1,6 +1,10 @@
 @import "tailwindcss";
 
 :root {
+  /* Aplikasi ini hanya memakai tema terang. Memaksa color-scheme light
+     mencegah browser memakai warna teks/kontrol form versi gelap saat OS
+     dalam mode dark, yang membuat teks tidak terbaca di atas background terang. */
+  color-scheme: light;
   --background: #ffffff;
   --foreground: #171717;
 }
@@ -12,15 +16,32 @@
   --font-mono: var(--font-geist-mono);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
-}
-
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-geist-sans), Arial, Helvetica, sans-serif;
+}
+
+/* Animasi panel dropdown pada komponen Select */
+@keyframes select-menu-in {
+  from {
+    opacity: 0;
+    transform: translateY(-6px) scale(0.98);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.select-menu {
+  transform-origin: top center;
+  animation: select-menu-in 140ms ease-out;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .select-menu {
+    animation: none;
+  }
 }

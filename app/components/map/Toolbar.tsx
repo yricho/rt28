@@ -1,6 +1,6 @@
 "use client";
 
-import { Search, Plus, Filter } from "lucide-react";
+import { Search } from "lucide-react";
 
 export default function Toolbar() {
   return (

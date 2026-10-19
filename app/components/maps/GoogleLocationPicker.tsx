@@ -1,13 +1,8 @@
 "use client";
 
-import {
-  GoogleMap,
-  Marker,
-  StandaloneSearchBox,
-  useJsApiLoader,
-} from "@react-google-maps/api";
+import { GoogleMap, Marker, useJsApiLoader } from "@react-google-maps/api";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 
 interface Props {
   latitude: string;
@@ -27,8 +22,6 @@ export default function GoogleLocationPicker({
   longitude,
   onChange,
 }: Props) {
-  const searchRef = useRef<google.maps.places.SearchBox | null>(null);
-
   const { isLoaded } = useJsApiLoader({
     googleMapsApiKey: process.env.NEXT_PUBLIC_GOOGLE_MAPS_KEY!,
     libraries,
@@ -43,6 +36,7 @@ export default function GoogleLocationPicker({
   useEffect(() => {
     if (!latitude || !longitude) return;
 
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setCenter({
       lat: Number(latitude),
       lng: Number(longitude),

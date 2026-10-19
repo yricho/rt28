@@ -1,22 +1,24 @@
 "use client";
 
-import { Home, House, Hammer, AlertTriangle } from "lucide-react";
+import { Home, House } from "lucide-react";
+import { useMemo } from "react";
 import { House as HouseType } from "@/app/types/house";
 
 interface Props {
   houses?: HouseType[];
 }
 
-export default function Stats({ houses = [] }: Props) {
-  const occupied = houses.filter((h) => h.status === "active").length;
+const EMPTY_HOUSES: HouseType[] = [];
 
-  const empty = houses.filter((h) => h.status === "nonactive").length;
+export default function Stats({ houses = EMPTY_HOUSES }: Props) {
+  const { occupied, empty } = useMemo(
+    () => ({
+      occupied: houses.filter((h) => h.status === "active").length,
+      empty: houses.filter((h) => h.status === "nonactive").length,
+    }),
+    [houses],
+  );
 
-  // const renovation = houses.filter(
-  //   (h) => h.status === "renovation",
-  // ).length;
-
-  console.log(houses,"<-------")
   return (
     <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
       {/* <Card

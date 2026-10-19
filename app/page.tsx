@@ -1,7 +1,9 @@
 "use client";
 
+import { getIplSummary } from "@/app/lib/iplSummary";
 import { supabase } from "@/app/lib/supabase";
 import { LoaderCircle } from "lucide-react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 
@@ -18,50 +20,28 @@ export default function Home() {
     totalLunas: 0,
   });
 
-  useEffect(() => {
-    loadStats();
-  }, []);
-
   async function loadStats() {
     try {
-      setLoading(true);
-
-      const [rumahResult, wargaResult, iplResult] = await Promise.all([
-        supabase.from("rumah").select("*", {
+      const [rumahResult, wargaResult, iplSummary] = await Promise.all([
+        supabase.from("rumah").select("id", {
           count: "exact",
           head: true,
         }),
 
-        supabase.from("warga").select("*", {
+        supabase.from("warga").select("id", {
           count: "exact",
           head: true,
         }),
 
-        supabase.from("tagihan_ipl").select("nominal,status"),
+        getIplSummary(),
       ]);
 
-      const totalRumah = rumahResult.count || 0;
-
-      const totalWarga = wargaResult.count || 0;
-
-      const totalIPL = iplResult.data?.length || 0;
-
-      const totalTunggakan =
-        iplResult.data
-          ?.filter((item) => item.status?.toLowerCase() !== "lunas")
-          .reduce((acc, curr) => acc + Number(curr.nominal || 0), 0) || 0;
-
-      const totalLunas =
-        iplResult.data
-          ?.filter((item) => item.status?.toLowerCase() === "lunas")
-          .reduce((acc, curr) => acc + Number(curr.nominal || 0), 0) || 0;
-
       setStats({
-        totalRumah,
-        totalWarga,
-        totalIPL,
-        totalTunggakan,
-        totalLunas,
+        totalRumah: rumahResult.count || 0,
+        totalWarga: wargaResult.count || 0,
+        totalIPL: iplSummary.totalTagihan,
+        totalTunggakan: iplSummary.totalTunggakan,
+        totalLunas: iplSummary.totalLunas,
       });
     } catch (error) {
       console.error(error);
@@ -71,12 +51,15 @@ export default function Home() {
   }
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    loadStats();
+  }, []);
+
+  useEffect(() => {
     async function checkSession() {
       const {
         data: { session },
       } = await supabase.auth.getSession();
-
-      console.log(session);
 
       if (session) {
         router.replace("/dashboard");
@@ -137,12 +120,12 @@ export default function Home() {
               </p>
 
               <div className="flex flex-col sm:flex-row gap-4 mt-8">
-                <a
+                <Link
                   href="/dashboard"
                   className="bg-black hover:bg-zinc-800 text-white px-6 py-4 rounded-2xl font-medium text-center transition"
                 >
                   Masuk Dashboard
-                </a>
+                </Link>
 
                 {/* <a
                   href="/account"

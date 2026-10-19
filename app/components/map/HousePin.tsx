@@ -1,5 +1,6 @@
 "use client";
 
+import { memo, useMemo } from "react";
 import { Marker, Popup, Tooltip } from "react-leaflet";
 
 import { House } from "@/app/types/house";
@@ -10,7 +11,7 @@ interface Props {
   onClick: (house: House) => void;
 }
 
-export default function HousePin({ house, onClick }: Props) {
+function HousePin({ house, onClick }: Props) {
   // const color = {
   //   occupied: "#22c55e",
   //   empty: "#374151",
@@ -35,10 +36,12 @@ export default function HousePin({ house, onClick }: Props) {
   }[house.status];
 
   const noRumah = `${house.blok}/${house.no_rumah}`;
+  const markerIcon = useMemo(() => createMarker(color), [color]);
+
   return (
     <Marker
       position={[Number(house.latitude), Number(house.longitude)]}
-      icon={createMarker(color)}
+      icon={markerIcon}
       // eventHandlers={{
       //   click: () => onClick(house),
       // }}
@@ -103,3 +106,5 @@ export default function HousePin({ house, onClick }: Props) {
     </Marker>
   );
 }
+
+export default memo(HousePin);
