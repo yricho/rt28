@@ -41,8 +41,12 @@ are reproducible.
 
 In the Cloudflare dashboard, set the Worker's build settings to:
 
-- **Build command:** `npx opennextjs-cloudflare build`
+- **Build command:** `npm run build` (Next.js build + OpenNext bundle)
 - **Deploy command:** `npx wrangler deploy`
+
+`npm run build` produces the OpenNext output (`.open-next`). Use
+`npm run build:next` if you only need a plain Next.js build without the
+Cloudflare bundle.
 
 Also add the variables below under **Settings → Variables and Secrets → Build
 variables and secrets** for **Production** and **Preview**, because `next build`
