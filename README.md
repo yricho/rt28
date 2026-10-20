@@ -16,6 +16,23 @@ bun dev
 
 Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
 
+## Environment Variables
+
+Copy `.env.example` to `.env` and fill in the values:
+
+```bash
+NEXT_PUBLIC_SUPABASE_URL=
+NEXT_PUBLIC_SUPABASE_ANON_KEY=
+NEXT_PUBLIC_GOOGLE_MAPS_KEY=
+```
+
+`NEXT_PUBLIC_*` variables are inlined into the client bundle **at build time**, so
+they must also be added to the hosting provider's environment settings
+(Vercel/Netlify/Cloudflare) for the environment you deploy to. If they are only
+available at runtime, `next build` will fail while prerendering pages that use
+Supabase with `Error: supabaseUrl is required.` After adding the variables,
+redeploy the project.
+
 You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
 
 This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
