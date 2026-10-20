@@ -12,6 +12,10 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // OpenNext / Wrangler build output.
+    ".open-next/**",
+    ".wrangler/**",
+    "cloudflare-env.d.ts",
     // Generated service worker files (Workbox build output).
     "public/sw.js",
     "public/workbox-*.js",

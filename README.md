@@ -33,6 +33,35 @@ available at runtime, `next build` will fail while prerendering pages that use
 Supabase with `Error: supabaseUrl is required.` After adding the variables,
 redeploy the project.
 
+## Deploy to Cloudflare Workers
+
+This project uses the [OpenNext Cloudflare adapter](https://opennext.js.org/cloudflare).
+The adapter files (`wrangler.jsonc`, `open-next.config.ts`) are committed so builds
+are reproducible.
+
+In the Cloudflare dashboard, set the Worker's build settings to:
+
+- **Build command:** `npx opennextjs-cloudflare build`
+- **Deploy command:** `npx wrangler deploy`
+
+Also add the variables below under **Settings → Variables and Secrets → Build
+variables and secrets** for **Production** and **Preview**, because `next build`
+needs them to inline `NEXT_PUBLIC_*` values:
+
+- `NEXT_PUBLIC_SUPABASE_URL`
+- `NEXT_PUBLIC_SUPABASE_ANON_KEY`
+- `NEXT_PUBLIC_GOOGLE_MAPS_KEY`
+
+Runtime variables can stay in the same dashboard page; `keep_vars` in
+`wrangler.jsonc` prevents `wrangler deploy` from removing them.
+
+To preview the Worker locally (requires Node.js 22+ for Wrangler):
+
+```bash
+cp .env.example .dev.vars   # then fill in the values
+npm run preview
+```
+
 You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
 
 This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
